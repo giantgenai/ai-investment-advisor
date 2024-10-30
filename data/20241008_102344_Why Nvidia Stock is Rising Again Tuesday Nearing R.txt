@@ -1,0 +1,14 @@
+Title: Why Nvidia Stock is Rising Again Tuesday, Nearing Record High
+Source: Yahoo Finance
+Date: 2024-10-08 10:23:44
+
+Sam Yeh / AFP / Getty Images
+Nvidia (NVDA) stock rose on Tuesday after Foxconn, the world’s largest contract electronics manufacturer, touted strong demand for artificial intelligence servers.
+Executives at Foxconn—officially named Hon Hai Precision Industry—said Tuesday at the company's annual tech day they were constructing in Mexico the world’s largest facility for assembling AI servers to house Nvidia’s GB200 chips, part of its Blackwell AI architecture.
+Young Liu, chair of Foxconn, said in an interview with Bloomberg Television that the company is aiming to produce 20,000 GB200 NVL72 servers at the factory in 2025. HSBC analysts have estimated the price of one GB200 NVL72 server is about $3 million.
+Demand for Nvidia’s Blackwell system is “awfully huge,” said Benjamin Ting, Foxconn’s senior vice president of cloud enterprise solutions, at the company’s tech day. Liu told Bloomberg demand was “crazy,” echoing comments from Nvidia CEO Jensen Huang last week.
+Nvidia stock was up 3.5% early Tuesday afternoon, extending gains from yesterday when the company overtook Microsoft (MSFT) as America’s second-most valuable company.
+The stock, which was trading near $133 on Tuesday, is approaching its record closing high of $135.57, which was set on June 18. Nvidia's all-time intraday high, set on June 20, is $140.76.
+TradingView
+Nvidia shares have more than doubled this year after rebounding from a summer slump amid reports that a design flaw would delay the rollout of the Blackwell system. Those reports coincided with a sell-off of big tech stocks as earnings disappointed and Wall Street questioned the wisdom of massive AI spending.
+Read the original article on Investopedia.

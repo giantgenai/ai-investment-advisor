@@ -1,0 +1,20 @@
+Title: MicroStrategy Surges to 6-Month High as Bitcoin Wrestles With Key Moving Average
+Source: Yahoo Finance
+Date: 2024-10-08 10:24:34
+
+The S&P 500 and Nasdaq tumbled over 1% and closed the day near their lows, possibly pushing down crypto prices, which shed much of their earlier gains.
+Over $215 million in leveraged crypto positions were liquidated during the day, hitting longs and shorts equally.
+MicroStrategy (MSTR) surged 5.5%, its possible overvaluation to bitcoin rising even more and maybe setting the stage for more debt offerings, creating a continued positive feedback loop with its stock, 10x Research noted.
+The crypto rally stumbled during the Monday U.S. trading session with bitcoin {{BTC}} slipping to $62,800 from near $64,000 within an hour along with an abrupt nosedive in the stock market.
+The quick volatility burst happened without any immediately apparent reasons, sending the S&P 500 and the Nasdaq tumbling over 1% during the afternoon session, while the volatility index VIX spiked 19% to its highest reading in a month.
+Stock indices closed the day around their lows, but bitcoin quickly recovered some of the losses, recently changing hands at $63,300, up 0.7% over the past 24 hours, but down nearly 2% from its daily high of $64,400. The broad-based benchmark CoinDesk 20 Index gained 0.3% over the same time period.
+Ether {{ETH}} underperformed with minor losses, while tokens of Near Protocol {{NEAR}}, Uniswap {{UNI}} and Aptos {{APT}} showed relative strength with 5%-8% advances.
+The rollercoaster in prices hit bulls and bears equally, liquidating over $210 million worth of leveraged derivatives trading positions across all digital assets, CoinGlass data shows. Some $110 million of liquidations were longs betting on higher prices, while $105 million worth of positions were shorts anticipating price weakness.
+What may have helped cryptocurrencies to recover quicker versus the stock market is that a U.S. judge approved FTX's bankruptcy plan, opening the way to repay creditors of the imploded crypto exchange.
+Still, Monday's price action meant that BTC briefly reclaimed the 200-day moving average, which currently sits at $63,575 per TradingView data, but ultimately failed to hold above it. Moving and holding past that key level would reaffirm bitcoin's uptrend since the lows of around $52,000 hit in the first week in September.
+Digital asset investment product issuer ETC Group – recently acquired by Bitwise – noted that bitcoin's rise over the past few days coincided with increasing odds of Donald Trump winning the U.S. presidential election in November. Bettors on blockchain-based prediction marketplace Polymarket see 53.5% odds for a Trump win versus Kamala Harris, up from equal chances on Friday.
+MicroStrategy (MSTR) was a notable outlier amid a weak stock market, with shares surging to $190 for the first time since late March and closing the day 5.5% higher. The company is the largest public corporate owner of bitcoin, holding nearly $16 billion of the asset.
+Markus Thielen, founder of 10x Research, noted in a report before Monday market open that a breakout above the $180 price level could beget more strength, even though his regression analysis showed the stock was already 44% overvalued versus BTC.
+"Market makers may be forced to hedge their short gamma exposure as they likely sold calls to retail investors), and hedge funds holding $4.6 billion in short positions on MicroStrategy shares could face pressure to cover those shorts if the price surpasses the $180 mark," Thielen wrote.
+The rally could induce MicroStrategy to raise even more debt for acquiring bitcoin, as demand for the company's notes have been strong with consistently upsizing the issuance, Thielen said in the report.
+"Raising even more debt to purchase bitcoin seems logical," he wrote. "A breakout in MicroStrategy’s stock could have a 'tail wags the dog' effect, where the momentum in its shares positively impacts Bitcoin’s price, creating a feedback loop."
