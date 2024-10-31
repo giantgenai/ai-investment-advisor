@@ -5,7 +5,7 @@
 ![Last Commit](https://img.shields.io/github/last-commit/giantgenai/ai-investment-advisor)
 ![Repo Size](https://img.shields.io/github/repo-size/giantgenai/ai-investment-advisor)
 ![License](https://img.shields.io/badge/license-MIT-blue)
-![Python](https://img.shields.io/badge/python-3.8%2B-brightgreen)
+![Python](https://img.shields.io/badge/python-3.9%2B-brightgreen)
 ![Build](https://img.shields.io/badge/build-passing-brightgreen)
 
 
