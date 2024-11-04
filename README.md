@@ -79,15 +79,15 @@ If you want to use OpenAI GPT models, please ensure you have the OpenAI API Key 
 ## Examples
 - Enter the industry you're interested in and click `Get Recommendation`: E.g. Finance
 
-<img src="images/Investment_app_industry_input.png" alt="Alt Text" width="80%" height="65%">
+<img src="images/Investment_app_industry_input.png" alt="Alt Text" width="100%" height="65%">
 
 - Investment App will investigate 3 most promising companies and give a recommendation for which one to invest based on their recent news:
 
-<img src="images/Investment_app_recommendation.png" alt="Alt Text" width="80%" height="65%">
+<img src="images/Investment_app_recommendation.png" alt="Alt Text" width="100%" height="65%">
 
 - Reference to those news of the companies are provided at the end:
 
-<img src="images/Investment_app_company_news.png" alt="Alt Text" width="80%" height="65%">
+<img src="images/Investment_app_company_news.png" alt="Alt Text" width="100%" height="65%">
 
 ## Technologies Used
 - Data orchestration: LlamaIndex
