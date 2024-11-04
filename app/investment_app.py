@@ -1,13 +1,12 @@
-import pandas as pd
+import pickle
 import streamlit as st
 import time
-from llama_index.llms.openai import OpenAI
-from llama_index.core.tools import FunctionTool
-from llama_index.core import VectorStoreIndex, StorageContext, load_index_from_storage
+from llama_index.core import VectorStoreIndex, StorageContext, SimpleDirectoryReader, load_index_from_storage
 from llama_index.vector_stores.faiss import FaissVectorStore
 from streamlit_chat import message
 from openai import OpenAI
 import openai
+import faiss
 
 # Import your existing functions
 from investment_utils import get_industry_tickers, get_news_with_summary
@@ -43,18 +42,46 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-@st.cache_data(ttl=3600)
+@st.cache(ttl=3600)
 def get_industry_data(industry):
     tickers = get_industry_tickers(industry)
     news_summaries = get_news_with_summary(tickers)
     return tickers, news_summaries
 
 # Load the index
-vector_store = FaissVectorStore.from_persist_dir("./saved_index")
-storage_context = StorageContext.from_defaults(
-    vector_store=vector_store, persist_dir="./saved_index"
+news_dir = "./data"
+
+# Load documents
+documents = SimpleDirectoryReader(news_dir).load_data()
+
+# Create a FAISS index
+d = 1536  # dimensions of text-embedding-ada-002
+faiss_index = faiss.IndexFlatL2(d)
+vector_store = FaissVectorStore(faiss_index=faiss_index)
+storage_context = StorageContext.from_defaults(vector_store=vector_store)
+
+# Create the index
+index = VectorStoreIndex.from_documents(
+    documents, storage_context=storage_context
 )
-index = load_index_from_storage(storage_context=storage_context)
+
+# # Save the FAISS index separately
+# faiss.write_index(faiss_index, "./saved_index/faiss.index")
+
+# # Save the rest of the index
+# index.storage_context.persist(persist_dir="./saved_index")
+
+# # Save the vector store separately
+# with open("./saved_index/vector_store.pkl", "wb") as f:
+#     pickle.dump(vector_store, f)
+
+# print("Index saved successfully")
+
+# vector_store = FaissVectorStore.from_persist_dir("./saved_index")
+# storage_context = StorageContext.from_defaults(
+#     vector_store=vector_store, persist_dir="./saved_index"
+# )
+# index = load_index_from_storage(storage_context=storage_context)
 
 # Create a query engine
 query_engine = index.as_query_engine()

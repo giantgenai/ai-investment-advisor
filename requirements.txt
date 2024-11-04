@@ -8,3 +8,7 @@ Crawl4AI
 streamlit
 streamlit_chat
 yfinance
+altair==4.0
+selenium
+faiss-cpu
+scikit-learn
