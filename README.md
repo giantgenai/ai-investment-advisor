@@ -2,8 +2,6 @@
 ![GitHub stars](https://img.shields.io/github/stars/giantgenai/ai-investment-advisor?style=social)
 ![Forks](https://img.shields.io/github/forks/giantgenai/ai-investment-advisor?style=social)
 ![Issues](https://img.shields.io/github/issues/giantgenai/ai-investment-advisor)
-![Last Commit](https://img.shields.io/github/last-commit/giantgenai/ai-investment-advisor)
-![Repo Size](https://img.shields.io/github/repo-size/giantgenai/ai-investment-advisor)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Python](https://img.shields.io/badge/python-3.9%2B-brightgreen)
 ![Build](https://img.shields.io/badge/build-passing-brightgreen)
@@ -40,8 +38,9 @@ The AI Image Classifier app enables users to upload an image and receive a class
 ### OpenAI API Key
 If you want to use OpenAI GPT models, please ensure you have the OpenAI API Key set up in your environment.
 1. Obtain your API Key
-Go to [OpenAI’s API Key page](https://platform.openai.com/api-keys).
-Log in and create a new API key if you haven't already.
+
+   Go to [OpenAI’s API Key page](https://platform.openai.com/api-keys).
+   Log in and create a new API key if you haven't already.
 2. Set Up the API Key in Your Environment
 
    **Linux/macOS:** 
@@ -80,15 +79,15 @@ Log in and create a new API key if you haven't already.
 ## Examples
 - Enter the industry you're interested in and click `Get Recommendation`: E.g. Finance
 
-<img src="images/Investment_app_industry_input.png" alt="Alt Text" width="50%" height="50%">
+<img src="images/Investment_app_industry_input.png" alt="Alt Text" width="80%" height="65%">
 
 - Investment App will investigate 3 most promising companies and give a recommendation for which one to invest based on their recent news:
 
-<img src="images/Investment_app_recommendation.png" alt="Alt Text" width="50%" height="50%">
+<img src="images/Investment_app_recommendation.png" alt="Alt Text" width="80%" height="65%">
 
 - Reference to those news of the companies are provided at the end:
 
-<img src="images/Investment_app_company_news.png" alt="Alt Text" width="50%" height="50%">
+<img src="images/Investment_app_company_news.png" alt="Alt Text" width="80%" height="65%">
 
 ## Technologies Used
 - Data orchestration: LlamaIndex
