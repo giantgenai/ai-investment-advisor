@@ -1,12 +1,12 @@
 # AI Investment App
-![GitHub stars](https://img.shields.io/github/stars/giantgenai/ai-investment-advisor?style=social)
-![Forks](https://img.shields.io/github/forks/giantgenai/ai-investment-advisor?style=social)
+![GitHub stars](https://img.shields.io/github/stars/giantgenai/ai-investment-advisor)
+![Forks](https://img.shields.io/github/forks/giantgenai/ai-investment-advisor)
 ![Issues](https://img.shields.io/github/issues/giantgenai/ai-investment-advisor)
-![License](https://img.shields.io/badge/license-MIT-blue)
 ![Python](https://img.shields.io/badge/python-3.9%2B-brightgreen)
-![Build](https://img.shields.io/badge/build-passing-brightgreen)
-
-
+![commits](https://badgen.net/github/commits/giantgenai/ai-investment-advisor/main)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/giantgenai/ai-investment-advisor)
+![License](https://img.shields.io/badge/license-MIT-red)
+<!-- ![GitHub all releases](https://img.shields.io/github/downloads/giantgenai/ai-investment-advisor/total?label=Downloads) -->
 Welcome to AI Investment App! 🚀 
 
 This application leverages large language models to analyze recent news summaries on companies and generate investment recommendations. By entering an industry name, the AI identifies the top three companies within that sector and evaluates their latest news to determine the most promising investment opportunity.
@@ -66,28 +66,32 @@ If you want to use OpenAI GPT models, please ensure you have the OpenAI API Key 
    ```bash
    git clone https://github.com/giantgenai/ai-investment-advisor.git
    cd ai-investment-advisor
+   ```
 2. Set up a virtual environment:
    ```bash
    python -m venv .venv
    source .venv/bin/activate
+   ```
 3. Install dependencies:
    ```bash
    pip install -r requirements.txt
+   ```
 4. Run the app:
    ```bash
    streamlit run app/investment_app.py
+   ```
 ## Examples
-- Enter the industry you're interested in and click `Get Recommendation`: E.g. Finance
+- Enter the industry you're interested in and click `Get Recommendation`: E.g. Technology
 
-<img src="images/Investment_app_industry_input.png" alt="Alt Text" width="100%" height="65%">
+   <img src="images/Investment_app_industry_input.png" alt="Alt Text" width="100%" height="65%">
 
 - Investment App will investigate 3 most promising companies and give a recommendation for which one to invest based on their recent news:
 
-<img src="images/Investment_app_recommendation.png" alt="Alt Text" width="100%" height="65%">
+   <img src="images/Investment_app_recommendation.png" alt="Alt Text" width="100%" height="65%">
 
 - Reference to those news of the companies are provided at the end:
 
-<img src="images/Investment_app_company_news.png" alt="Alt Text" width="100%" height="65%">
+   <img src="images/Investment_app_company_news.png" alt="Alt Text" width="100%" height="65%">
 
 ## Technologies Used
 - Data orchestration: LlamaIndex
