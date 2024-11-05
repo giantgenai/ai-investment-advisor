@@ -2,10 +2,7 @@ from typing import List, Dict
 from datetime import datetime
 from pydantic import BaseModel, Field
 from requests.exceptions import Timeout
-from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, Document
 from llama_index.core.tools import FunctionTool
-from llama_index.core.agent import ReActAgent
-from llama_index.core.memory import ChatMemoryBuffer
 from crawl4ai.chunking_strategy import *
 from crawl4ai.extraction_strategy import LLMExtractionStrategy
 from crawl4ai.crawler_strategy import *
@@ -17,12 +14,12 @@ import json
 crawler = WebCrawler()
 crawler.warmup()
 
-from openai import OpenAI  # Ensure you have the OpenAI library installed
+from openai import OpenAI 
 
 # Initialize the OpenAI client to use Ollama's local server
 client = OpenAI(
-    base_url='http://localhost:11434/v1',  # Ollama's local server
-    api_key='ollama'  # Required but unused
+    base_url='http://localhost:11434/v1',  
+    api_key='ollama'  
 )
 
 class PageSummary(BaseModel):

@@ -5,17 +5,16 @@ from llama_index.core import VectorStoreIndex, StorageContext, SimpleDirectoryRe
 from llama_index.vector_stores.faiss import FaissVectorStore
 from streamlit_chat import message
 from openai import OpenAI
-import openai
 import faiss
 
-# Import your existing functions
 from investment_utils import get_industry_tickers, get_news_with_summary
 
-# client = OpenAI()
-# Update the OpenAI client to use Ollama's local server
-client = OpenAI(
-    base_url='http://localhost:11434/v1',  # Ollama's local server
-    api_key='ollama'  # Required but unused
+
+# Initialize both OpenAI and Ollama clients
+openai_client = OpenAI()
+ollama_client = OpenAI(
+    base_url='http://localhost:11434/v1',
+    api_key='ollama'
 )
 
 # Set page config
@@ -91,7 +90,7 @@ def get_relevant_news(industry: str, company: str) -> str:
     response = query_engine.query(query)
     return str(response)
 
-def recommend_investment(industry: str, tickers: str, news_summaries: str) -> str:
+def recommend_investment(industry: str, tickers: str, news_summaries: str, model_choice: str="gpt-4o-mini") -> str:
 
     relevant_news = ""
     for ticker in tickers.split(", "):
@@ -124,10 +123,17 @@ def recommend_investment(industry: str, tickers: str, news_summaries: str) -> st
 
     Do not include any other sections or repeat the recommendation and explanation.
     """
+
+    if model_choice == "gpt-4o-mini":
+        client = openai_client
+        model = "gpt-4o-mini"
+    else:
+        client = ollama_client
+        model = "llama3.2"  
+
     # Make the API call to OpenAI's GPT-4 model
     response = client.chat.completions.create(
-        model="llama3.2",
-        # model="gpt-4o-mini",
+        model=model,
         messages=[
             {"role": "system", "content": "You are a financial assistant specialized in investment analysis."},
             {"role": "user", "content": prompt}
@@ -149,12 +155,19 @@ if 'messages' not in st.session_state:
 if 'recommendation' not in st.session_state:
     st.session_state['recommendation'] = ""
 
-def generate_response(prompt, recommendation):
+def generate_response(prompt, recommendation, model_choice="gpt-4o-mini"):
     st.session_state['messages'].append({"role": "user", "content": prompt})
+
+    
+    if model_choice == "gpt-4o-mini":
+        client = openai_client
+        model = "gpt-4o-mini"
+    else:
+        client = ollama_client
+        model = "llama3.2"  
     
     response = client.chat.completions.create(
-            model="llama3.2",
-            # model="gpt-4o-mini",
+            model=model,
             messages=[
                 {"role": "system", "content": "You are a helpful assistant that provides information about the investment recommendation. Refer to the recommendation when answering questions."},
                 {"role": "assistant", "content": f"Here's the investment recommendation: {recommendation}"},
@@ -178,6 +191,13 @@ def main():
     st.sidebar.markdown("2. Click 'Get Recommendation'")
     st.sidebar.markdown("3. Review the AI-generated advice")
 
+    # Add model selection dropdown
+    model_choice = st.selectbox(
+        "Choose Language Model",
+        ["gpt-4o-mini", "llama3.2"],
+        help="Select which language model to use for generating responses"
+    )
+
     industry = st.text_input("Enter an industry name:", help="e.g., Technology, Healthcare, Finance")
 
     if st.button("Get Recommendation", key="recommend"):
@@ -198,7 +218,7 @@ def main():
                 progress_bar.progress(50)
                 
                 # Generate recommendation
-                recommendation = recommend_investment(industry, tickers, news_summaries)
+                recommendation = recommend_investment(industry, tickers, news_summaries, model_choice=model_choice)
                 st.session_state['recommendation'] = recommendation
                 progress_bar.progress(100)
                 
@@ -254,7 +274,7 @@ def main():
     user_input = st.text_input("Your question:", key="input")
     
     if user_input:
-        output = generate_response(user_input, st.session_state['recommendation'])
+        output = generate_response(user_input, st.session_state['recommendation'], model_choice=model_choice)
         st.session_state.past.append(user_input)
         st.session_state.generated.append(output)
 
