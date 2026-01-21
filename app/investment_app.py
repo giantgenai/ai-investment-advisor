@@ -41,7 +41,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-@st.cache(ttl=3600)
+@st.cache_data(ttl=3600)
 def get_industry_data(industry):
     tickers = get_industry_tickers(industry)
     news_summaries = get_news_with_summary(tickers)
@@ -129,7 +129,7 @@ def recommend_investment(industry: str, tickers: str, news_summaries: str, model
         model = "gpt-4o-mini"
     else:
         client = ollama_client
-        model = "llama3.2"  
+        model = "llama3.3:latest"  
 
     # Make the API call to OpenAI's GPT-4 model
     response = client.chat.completions.create(
@@ -164,7 +164,7 @@ def generate_response(prompt, recommendation, model_choice="gpt-4o-mini"):
         model = "gpt-4o-mini"
     else:
         client = ollama_client
-        model = "llama3.2"  
+        model = "llama3.3:latest"  
     
     response = client.chat.completions.create(
             model=model,
@@ -194,7 +194,7 @@ def main():
     # Add model selection dropdown
     model_choice = st.selectbox(
         "Choose Language Model",
-        ["gpt-4o-mini", "llama3.2"],
+        ["gpt-4o-mini", "llama3.3"],
         help="Select which language model to use for generating responses"
     )
 

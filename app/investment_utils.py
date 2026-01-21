@@ -3,16 +3,11 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 from requests.exceptions import Timeout
 from llama_index.core.tools import FunctionTool
-from crawl4ai.chunking_strategy import *
+from crawl4ai import AsyncWebCrawler
 from crawl4ai.extraction_strategy import LLMExtractionStrategy
-from crawl4ai.crawler_strategy import *
-from crawl4ai.web_crawler import WebCrawler
-from crawl4ai import config
 import yfinance as yf
 import json
-
-crawler = WebCrawler()
-crawler.warmup()
+import asyncio
 
 from openai import OpenAI 
 
@@ -29,37 +24,54 @@ class PageSummary(BaseModel):
     content: str = Field(..., description="The content of the page")
     keywords: list = Field(..., description="The keywords of the page")
 
+async def crawl_page_summary_async(url):
+    """Async version of crawl_page_summary using the new crawl4ai API."""
+    async with AsyncWebCrawler() as crawler:
+        result = await crawler.arun(
+            url=url,
+            word_count_threshold=1,
+            extraction_strategy=LLMExtractionStrategy(
+                provider="ollama/llama3.3:latest",  # Use LLaMA 3 model
+                api_token='ollama', 
+                schema=PageSummary.model_json_schema(),
+                extraction_type="schema",
+                instruction="From the crawled content, extract the following information: "\
+                "1. title: The title of the page "\
+                "2. summary: A summary of the page, which is a concise overview of the page content "\
+                "3. brief_summary: A brief summary of the page, which is paragraph-long summary of the page content less than 250 words"\
+                "4. content: The content of the page "\
+                "5. keywords: A list of keywords of the page. "\
+                'The extracted JSON format should look exactly like this with only 5 keys:  '\
+                '{\n'\
+                '    "title": "Page Title",\n'\
+                '    "summary": "Page Summary",\n'\
+                '    "brief_summary": "Page Brief Summary",\n'\
+                '    "content": "Page Content",\n'\
+                '    "keywords": ["keyword1", "keyword2", "keyword3"]\n'\
+                '}'
+            ),
+            bypass_cache=True,
+        )
+        page_summary = json.loads(result.extracted_content)
+        return page_summary
+
 def crawl_page_summary(url):
-    result = crawler.run(
-        url=url,
-        word_count_threshold=1,
-        extraction_strategy=LLMExtractionStrategy(
-            # prompt= "openai/gpt-4o-mini",
-            # api_token=os.environ["OPENAI_API_KEY"],
-            provider="ollama/llama3.2",  # Use LLaMA 3 model
-            api_token='ollama', 
-            scheme=PageSummary.model_json_schema(),
-            extraction_type="schema",
-            apply_chunking=False,
-            instruction="From the crawled content, extract the following information: "\
-            "1. title: The title of the page "\
-            "2. summary: A summary of the page, which is a concise overview of the page content "\
-            "3. brief_summary: A brief summary of the page, which is paragraph-long summary of the page content less than 250 words"\
-            "4. content: The content of the page "\
-            "5. keywords: A list of keywords of the page. "\
-            'The extracted JSON format should look exactly like this with only 5 keys:  '\
-            '{\n'\
-            '    "title": "Page Title",\n'\
-            '    "summary": "Page Summary",\n'\
-            '    "brief_summary": "Page Brief Summary",\n'\
-            '    "content": "Page Content",\n'\
-            '    "keywords": ["keyword1", "keyword2", "keyword3"]\n'\
-            '}'
-        ),
-        bypass_cache=True,
-    )
-    page_summary = json.loads(result.extracted_content)
-    return page_summary
+    """Synchronous wrapper for crawl_page_summary_async."""
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    
+    if loop.is_running():
+        # If there's already an event loop running (e.g., in Streamlit),
+        # create a new loop in a separate thread
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(asyncio.run, crawl_page_summary_async(url))
+            return future.result()
+    else:
+        return loop.run_until_complete(crawl_page_summary_async(url))
 
 def get_industry_tickers(industry: str) -> str:
     """
