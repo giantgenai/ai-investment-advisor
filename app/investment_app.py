@@ -1,6 +1,7 @@
 import pickle
 import streamlit as st
 import time
+import logging
 from llama_index.core import VectorStoreIndex, StorageContext, SimpleDirectoryReader, load_index_from_storage
 from llama_index.vector_stores.faiss import FaissVectorStore
 from streamlit_chat import message
@@ -8,13 +9,20 @@ from openai import OpenAI
 import faiss
 
 from investment_utils import get_industry_tickers, get_news_with_summary
+from config import MODEL_CONFIG
+
+# Basic logging configuration
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"
+)
 
 
 # Initialize both OpenAI and Ollama clients
 openai_client = OpenAI()
 ollama_client = OpenAI(
-    base_url='http://localhost:11434/v1',
-    api_key='ollama'
+    base_url=MODEL_CONFIG.ollama_base_url,
+    api_key=MODEL_CONFIG.ollama_api_key
 )
 
 # Set page config
@@ -124,12 +132,12 @@ def recommend_investment(industry: str, tickers: str, news_summaries: str, model
     Do not include any other sections or repeat the recommendation and explanation.
     """
 
-    if model_choice == "gpt-4o-mini":
+    if model_choice == MODEL_CONFIG.openai_chat_model:
         client = openai_client
-        model = "gpt-4o-mini"
+        model = MODEL_CONFIG.openai_chat_model
     else:
         client = ollama_client
-        model = "llama3.3:latest"  
+        model = MODEL_CONFIG.ollama_chat_model  
 
     # Make the API call to OpenAI's GPT-4 model
     response = client.chat.completions.create(
@@ -159,12 +167,12 @@ def generate_response(prompt, recommendation, model_choice="gpt-4o-mini"):
     st.session_state['messages'].append({"role": "user", "content": prompt})
 
     
-    if model_choice == "gpt-4o-mini":
+    if model_choice == MODEL_CONFIG.openai_chat_model:
         client = openai_client
-        model = "gpt-4o-mini"
+        model = MODEL_CONFIG.openai_chat_model
     else:
         client = ollama_client
-        model = "llama3.3:latest"  
+        model = MODEL_CONFIG.ollama_chat_model  
     
     response = client.chat.completions.create(
             model=model,
@@ -194,7 +202,7 @@ def main():
     # Add model selection dropdown
     model_choice = st.selectbox(
         "Choose Language Model",
-        ["gpt-4o-mini", "llama3.3"],
+        [MODEL_CONFIG.openai_chat_model, MODEL_CONFIG.ollama_chat_model],
         help="Select which language model to use for generating responses"
     )
 

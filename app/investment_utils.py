@@ -1,9 +1,10 @@
 from typing import List, Dict
+import logging
 from datetime import datetime
 from pydantic import BaseModel, Field
 from requests.exceptions import Timeout
 from llama_index.core.tools import FunctionTool
-from crawl4ai import AsyncWebCrawler
+from crawl4ai import AsyncWebCrawler, LLMConfig
 from crawl4ai.extraction_strategy import LLMExtractionStrategy
 import yfinance as yf
 import json
@@ -11,10 +12,14 @@ import asyncio
 
 from openai import OpenAI 
 
+from config import MODEL_CONFIG
+
+logger = logging.getLogger(__name__)
+
 # Initialize the OpenAI client to use Ollama's local server
 ollama_client = OpenAI(
-    base_url='http://localhost:11434/v1',  
-    api_key='ollama'  
+    base_url=MODEL_CONFIG.ollama_base_url,
+    api_key=MODEL_CONFIG.ollama_api_key
 )
 
 # Initialize OpenAI client (for fallback)
@@ -37,8 +42,10 @@ async def crawl_page_summary_async(url):
             url=url,
             word_count_threshold=1,
             extraction_strategy=LLMExtractionStrategy(
-                provider="ollama/llama3.3:latest",  # Use LLaMA 3 model
-                api_token='ollama', 
+                llm_config=LLMConfig(
+                    provider=MODEL_CONFIG.ollama_summary_provider,
+                    api_token=MODEL_CONFIG.ollama_api_key
+                ),
                 schema=PageSummary.model_json_schema(),
                 extraction_type="schema",
                 instruction="From the crawled content, extract the following information: "\
@@ -67,7 +74,7 @@ async def crawl_page_summary_async(url):
             page_summary = json.loads(result.extracted_content)
             return page_summary
         except json.JSONDecodeError as e:
-            print(f"Failed to parse JSON from crawl result: {e}")
+            logger.warning("Failed to parse JSON from crawl result: %s", e)
             return None
 
 def crawl_page_summary(url):
@@ -92,7 +99,7 @@ def crawl_page_summary(url):
         else:
             return loop.run_until_complete(crawl_page_summary_async(url))
     except Exception as e:
-        print(f"Error crawling page summary for {url}: {e}")
+        logger.warning("Error crawling page summary for %s: %s", url, e)
         return None
 
 
@@ -125,26 +132,26 @@ Provide only the summary, no additional text or explanation."""
     # Try Ollama first
     try:
         response = ollama_client.chat.completions.create(
-            model="llama3.2",
+            model=MODEL_CONFIG.ollama_summary_model,
             messages=messages,
             temperature=0.3,
             max_tokens=150
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
-        print(f"Ollama failed for summary generation: {e}")
+        logger.warning("Ollama failed for summary generation: %s", e)
     
     # Fallback to OpenAI
     try:
         response = openai_client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=MODEL_CONFIG.openai_chat_model,
             messages=messages,
             temperature=0.3,
             max_tokens=150
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
-        print(f"OpenAI also failed for summary generation: {e}")
+        logger.warning("OpenAI also failed for summary generation: %s", e)
         return None
 
 def get_industry_tickers(industry: str) -> str:
@@ -172,24 +179,24 @@ def get_industry_tickers(industry: str) -> str:
     # Try Ollama first
     try:
         response = ollama_client.chat.completions.create(
-            model="llama3.2",
+            model=MODEL_CONFIG.ollama_chat_model,
             messages=messages,
             temperature=0
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
-        print(f"Ollama failed for ticker generation: {e}")
+        logger.warning("Ollama failed for ticker generation: %s", e)
     
     # Fallback to OpenAI
     try:
         response = openai_client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=MODEL_CONFIG.openai_chat_model,
             messages=messages,
             temperature=0
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
-        print(f"OpenAI also failed for ticker generation: {e}")
+        logger.warning("OpenAI also failed for ticker generation: %s", e)
         return ""
 
 # Create the LlamaIndex tool
@@ -205,7 +212,7 @@ def get_company_news(ticker: str, num_news: int=3) -> List[Dict[str, str]]:
         news = company.news
         
         if not news:
-            print(f"No news found for {ticker}")
+            logger.info("No news found for %s", ticker)
             return []
         
         formatted_news = []
@@ -250,12 +257,12 @@ def get_company_news(ticker: str, num_news: int=3) -> List[Dict[str, str]]:
                 }
                 formatted_news.append(formatted_item)
             except Exception as item_error:
-                print(f"Error processing news item for {ticker}: {item_error}")
+                logger.warning("Error processing news item for %s: %s", ticker, item_error)
                 continue
         
         return formatted_news
     except Exception as e:
-        print(f"An error occurred for {ticker}: {e}")
+        logger.warning("An error occurred for %s: %s", ticker, e)
         return []
 
 def get_news_with_summary(tickers: str) -> str:
@@ -272,7 +279,7 @@ def get_news_with_summary(tickers: str) -> str:
     all_news = []
 
     for ticker in ticker_list:
-        print(f"Fetching news for {ticker}...")
+        logger.info("Fetching news for %s...", ticker)
         company_news = get_company_news(ticker)
         if company_news:
             all_news.append(f"News for {ticker}:")
@@ -284,7 +291,7 @@ def get_news_with_summary(tickers: str) -> str:
                 # Try to crawl the page for summary if link is available
                 if item.get('link'):
                     try:
-                        print(f"Crawling summary for {item['title']}...")
+                        logger.info("Crawling summary for %s...", item['title'])
                         summary = crawl_page_summary(item['link'])
                         if summary:
                             # Handle different response structures
@@ -308,15 +315,15 @@ def get_news_with_summary(tickers: str) -> str:
                             else:
                                 summary_text = str(summary)[:500]
                     except Exception as e:
-                        print(f"Crawling failed for {item['title']}: {e}")
+                        logger.warning("Crawling failed for %s: %s", item['title'], e)
                 
                 # Fallback: Generate summary from title using LLM if crawling failed
                 if not summary_text:
-                    print(f"Using fallback summary generation for {item['title']}...")
+                    logger.info("Using fallback summary generation for %s...", item['title'])
                     try:
                         summary_text = generate_summary_from_title(item['title'], ticker)
                     except Exception as e:
-                        print(f"Fallback summary generation failed: {e}")
+                        logger.warning("Fallback summary generation failed: %s", e)
                 
                 if summary_text:
                     all_news.append(f"  Summary: {summary_text}")
@@ -342,15 +349,15 @@ ticker_news_summary_tool = FunctionTool.from_defaults(
 )
 
 def recommend_investment(industry: str) -> str:
-    print(f"Generating investment recommendation for {industry}...")
+    logger.info("Generating investment recommendation for %s...", industry)
     tickers = get_industry_tickers(industry)
     if not tickers:
         return f"Unable to fetch tickers for {industry} industry."
     
-    print(f"Fetching news summaries for {tickers}...")
+    logger.info("Fetching news summaries for %s...", tickers)
     summaries = get_news_with_summary(tickers)
     
-    print("Analyzing news and generating recommendation...")
+    logger.info("Analyzing news and generating recommendation...")
     prompt = f"""
     Based on the following news summaries for companies in the {industry} industry, 
     analyze the information and recommend the best company for investment. 
@@ -371,7 +378,7 @@ def recommend_investment(industry: str) -> str:
     # Try Ollama first
     try:
         response = ollama_client.chat.completions.create(
-            model="llama3.2",
+            model=MODEL_CONFIG.ollama_chat_model,
             messages=messages,
             temperature=0,
             timeout=60
@@ -380,12 +387,12 @@ def recommend_investment(industry: str) -> str:
     except Timeout:
         return "Timeout occurred while generating recommendation."
     except Exception as e:
-        print(f"Ollama failed for recommendation: {e}")
+        logger.warning("Ollama failed for recommendation: %s", e)
     
     # Fallback to OpenAI
     try:
         response = openai_client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=MODEL_CONFIG.openai_chat_model,
             messages=messages,
             temperature=0
         )
