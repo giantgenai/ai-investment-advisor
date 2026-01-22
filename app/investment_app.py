@@ -240,17 +240,27 @@ def main():
                 # Display news summaries
                 news_placeholder.markdown("<p class='medium-font'><b>Recent News Summaries:</b></p>", unsafe_allow_html=True)
                 for company_news in news_summaries.split('\n\n'):
+                    if not company_news.strip():
+                        continue
                     st.markdown("---")  # Add a separator between companies
                     lines = company_news.split('\n')
                     if lines:
                         st.markdown(f"**{lines[0]}**")  # Company name or ticker
                         for line in lines[1:]:
                             if line.startswith('- '):
-                                title, date = line[2:].rsplit(' (Published:', 1)
-                                st.write(f"• {title}")
-                                st.caption(f"Published: {date.rstrip(')')}")
+                                # Safely parse the title and date
+                                line_content = line[2:]
+                                if ' (Published:' in line_content:
+                                    title, date = line_content.rsplit(' (Published:', 1)
+                                    st.write(f"• {title}")
+                                    st.caption(f"Published: {date.rstrip(')')}")
+                                else:
+                                    st.write(f"• {line_content}")
                             elif line.startswith('  Summary:'):
                                 st.info(line[10:])  # Display summary if available
+                            elif line.startswith('  Source:'):
+                                source_url = line[9:].strip()
+                                st.markdown(f"🔗 [Read full article]({source_url})", unsafe_allow_html=True)
                             elif line.strip():
                                 st.write(line)  # Any other information
                 

@@ -12,10 +12,13 @@ import asyncio
 from openai import OpenAI 
 
 # Initialize the OpenAI client to use Ollama's local server
-client = OpenAI(
+ollama_client = OpenAI(
     base_url='http://localhost:11434/v1',  
     api_key='ollama'  
 )
+
+# Initialize OpenAI client (for fallback)
+openai_client = OpenAI()
 
 class PageSummary(BaseModel):
     title: str = Field(..., description="The title of the page")
@@ -26,6 +29,9 @@ class PageSummary(BaseModel):
 
 async def crawl_page_summary_async(url):
     """Async version of crawl_page_summary using the new crawl4ai API."""
+    if not url:
+        return None
+        
     async with AsyncWebCrawler() as crawler:
         result = await crawler.arun(
             url=url,
@@ -52,26 +58,94 @@ async def crawl_page_summary_async(url):
             ),
             bypass_cache=True,
         )
-        page_summary = json.loads(result.extracted_content)
-        return page_summary
+        
+        # Check if extracted_content exists and is valid
+        if not result or not result.extracted_content:
+            return None
+            
+        try:
+            page_summary = json.loads(result.extracted_content)
+            return page_summary
+        except json.JSONDecodeError as e:
+            print(f"Failed to parse JSON from crawl result: {e}")
+            return None
 
 def crawl_page_summary(url):
     """Synchronous wrapper for crawl_page_summary_async."""
+    if not url:
+        return None
+        
     try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        if loop.is_running():
+            # If there's already an event loop running (e.g., in Streamlit),
+            # create a new loop in a separate thread
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(asyncio.run, crawl_page_summary_async(url))
+                return future.result()
+        else:
+            return loop.run_until_complete(crawl_page_summary_async(url))
+    except Exception as e:
+        print(f"Error crawling page summary for {url}: {e}")
+        return None
+
+
+def generate_summary_from_title(title: str, ticker: str) -> str:
+    """
+    Generate a brief summary using LLM based on the news title.
+    This is a fallback when web crawling is not available.
     
-    if loop.is_running():
-        # If there's already an event loop running (e.g., in Streamlit),
-        # create a new loop in a separate thread
-        import concurrent.futures
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            future = executor.submit(asyncio.run, crawl_page_summary_async(url))
-            return future.result()
-    else:
-        return loop.run_until_complete(crawl_page_summary_async(url))
+    Args:
+        title (str): The news article title.
+        ticker (str): The stock ticker symbol.
+    
+    Returns:
+        str: A brief generated summary based on the title.
+    """
+    if not title:
+        return None
+        
+    prompt = f"""Based on this news headline about {ticker}, provide a brief 1-2 sentence summary of what this news likely means for investors:
+
+Headline: {title}
+
+Provide only the summary, no additional text or explanation."""
+
+    messages = [
+        {"role": "system", "content": "You are a financial news analyst. Provide brief, factual summaries."},
+        {"role": "user", "content": prompt}
+    ]
+
+    # Try Ollama first
+    try:
+        response = ollama_client.chat.completions.create(
+            model="llama3.2",
+            messages=messages,
+            temperature=0.3,
+            max_tokens=150
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"Ollama failed for summary generation: {e}")
+    
+    # Fallback to OpenAI
+    try:
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            temperature=0.3,
+            max_tokens=150
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"OpenAI also failed for summary generation: {e}")
+        return None
 
 def get_industry_tickers(industry: str) -> str:
     """
@@ -90,18 +164,33 @@ def get_industry_tickers(industry: str) -> str:
     Example format: AAPL, MSFT, GOOGL
     """
     
-    # llm = OpenAI(model="gpt-4", temperature=0)
-    # response = llm.complete(prompt)
-    # return response.text.strip()
-    response = client.chat.completions.create(
-        model="llama3.2",  # Use LLaMA 3 model
-        messages=[
-            {"role": "system", "content": "You are a financial assistant."},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0
+    messages = [
+        {"role": "system", "content": "You are a financial assistant."},
+        {"role": "user", "content": prompt}
+    ]
+    
+    # Try Ollama first
+    try:
+        response = ollama_client.chat.completions.create(
+            model="llama3.2",
+            messages=messages,
+            temperature=0
         )
-    return response.choices[0].message.content.strip()
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"Ollama failed for ticker generation: {e}")
+    
+    # Fallback to OpenAI
+    try:
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            temperature=0
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"OpenAI also failed for ticker generation: {e}")
+        return ""
 
 # Create the LlamaIndex tool
 industry_tickers_tool = FunctionTool.from_defaults(
@@ -115,15 +204,54 @@ def get_company_news(ticker: str, num_news: int=3) -> List[Dict[str, str]]:
         company = yf.Ticker(ticker)
         news = company.news
         
+        if not news:
+            print(f"No news found for {ticker}")
+            return []
+        
         formatted_news = []
         for item in news[:num_news]:  # Limit to 3 news items per company
-            publish_date = datetime.fromtimestamp(item['providerPublishTime']).strftime('%Y-%m-%d %H:%M:%S')
-            formatted_item = {
-                'title': item['title'],
-                'link': item['link'],
-                'published': publish_date
-            }
-            formatted_news.append(formatted_item)
+            try:
+                # Try new yfinance API structure first (v0.2.28+)
+                if 'content' in item:
+                    content = item['content']
+                    title = content.get('title', 'No title')
+                    
+                    # Handle different link structures
+                    if 'canonicalUrl' in content and isinstance(content['canonicalUrl'], dict):
+                        link = content['canonicalUrl'].get('url', '')
+                    else:
+                        link = content.get('clickThroughUrl', {}).get('url', '') if isinstance(content.get('clickThroughUrl'), dict) else ''
+                    
+                    # Handle pubDate as ISO string
+                    pub_date_str = content.get('pubDate', '')
+                    if pub_date_str:
+                        try:
+                            # Parse ISO format date
+                            publish_date = datetime.fromisoformat(pub_date_str.replace('Z', '+00:00')).strftime('%Y-%m-%d %H:%M:%S')
+                        except (ValueError, AttributeError):
+                            publish_date = pub_date_str
+                    else:
+                        publish_date = 'Unknown'
+                else:
+                    # Fall back to old yfinance API structure
+                    title = item.get('title', 'No title')
+                    link = item.get('link', '')
+                    
+                    # Handle providerPublishTime as timestamp
+                    if 'providerPublishTime' in item:
+                        publish_date = datetime.fromtimestamp(item['providerPublishTime']).strftime('%Y-%m-%d %H:%M:%S')
+                    else:
+                        publish_date = 'Unknown'
+                
+                formatted_item = {
+                    'title': title,
+                    'link': link,
+                    'published': publish_date
+                }
+                formatted_news.append(formatted_item)
+            except Exception as item_error:
+                print(f"Error processing news item for {ticker}: {item_error}")
+                continue
         
         return formatted_news
     except Exception as e:
@@ -150,16 +278,55 @@ def get_news_with_summary(tickers: str) -> str:
             all_news.append(f"News for {ticker}:")
             for item in company_news:
                 all_news.append(f"- {item['title']} (Published: {item['published']})")
-                try:
-                    print(f"Crawling summary for {item['title']}...")
-                    summary = crawl_page_summary(item['link'])
-                    if summary:
-                        # all_news.append(f"  Summary: {summary[0]['summary']}; Content: {summary[0]['content']}")
-                        all_news.append(f"  Summary: {summary[0]['summary']}")
-                    else:
-                        all_news.append("  Unable to fetch summary")
-                except Exception as e:
-                    all_news.append(f"  Unable to fetch summary: {str(e)}")
+                
+                summary_text = None
+                
+                # Try to crawl the page for summary if link is available
+                if item.get('link'):
+                    try:
+                        print(f"Crawling summary for {item['title']}...")
+                        summary = crawl_page_summary(item['link'])
+                        if summary:
+                            # Handle different response structures
+                            if isinstance(summary, list) and len(summary) > 0:
+                                # Response is a list of dictionaries
+                                summary_item = summary[0]
+                                if isinstance(summary_item, dict) and 'summary' in summary_item:
+                                    summary_text = summary_item['summary']
+                                elif isinstance(summary_item, dict) and 'brief_summary' in summary_item:
+                                    summary_text = summary_item['brief_summary']
+                                else:
+                                    summary_text = str(summary_item)[:500]
+                            elif isinstance(summary, dict):
+                                # Response is a single dictionary
+                                if 'summary' in summary:
+                                    summary_text = summary['summary']
+                                elif 'brief_summary' in summary:
+                                    summary_text = summary['brief_summary']
+                                else:
+                                    summary_text = str(summary)[:500]
+                            else:
+                                summary_text = str(summary)[:500]
+                    except Exception as e:
+                        print(f"Crawling failed for {item['title']}: {e}")
+                
+                # Fallback: Generate summary from title using LLM if crawling failed
+                if not summary_text:
+                    print(f"Using fallback summary generation for {item['title']}...")
+                    try:
+                        summary_text = generate_summary_from_title(item['title'], ticker)
+                    except Exception as e:
+                        print(f"Fallback summary generation failed: {e}")
+                
+                if summary_text:
+                    all_news.append(f"  Summary: {summary_text}")
+                else:
+                    all_news.append("  Summary: Summary not available")
+                
+                # Add source link
+                if item.get('link'):
+                    all_news.append(f"  Source: {item['link']}")
+                    
             all_news.append("")  # Add a blank line between companies
 
     if all_news:
@@ -184,7 +351,6 @@ def recommend_investment(industry: str) -> str:
     summaries = get_news_with_summary(tickers)
     
     print("Analyzing news and generating recommendation...")
-    # llm = OpenAI(model="gpt-4", temperature=0)
     prompt = f"""
     Based on the following news summaries for companies in the {industry} industry, 
     analyze the information and recommend the best company for investment. 
@@ -197,22 +363,33 @@ def recommend_investment(industry: str) -> str:
     Recommendation:
     """
     
-    # try:
-    #     response = llm.complete(prompt, timeout=60)
-    #     return response.text.strip()
+    messages = [
+        {"role": "system", "content": "You are a financial analyst."},
+        {"role": "user", "content": prompt}
+    ]
+    
+    # Try Ollama first
     try:
-        response = client.chat.completions.create(
-            model="llama3.2",  # Use LLaMA 3 model
-            messages=[
-                {"role": "system", "content": "You are a financial analyst."},
-                {"role": "user", "content": prompt}
-            ],
+        response = ollama_client.chat.completions.create(
+            model="llama3.2",
+            messages=messages,
             temperature=0,
             timeout=60
         )
         return response.choices[0].message.content.strip()
     except Timeout:
         return "Timeout occurred while generating recommendation."
+    except Exception as e:
+        print(f"Ollama failed for recommendation: {e}")
+    
+    # Fallback to OpenAI
+    try:
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            temperature=0
+        )
+        return response.choices[0].message.content.strip()
     except Exception as e:
         return f"Error occurred while generating recommendation: {str(e)}"
 
