@@ -1,5 +1,6 @@
 from typing import List, Dict
 import logging
+import os
 from datetime import datetime
 from pydantic import BaseModel, Field
 from requests.exceptions import Timeout
@@ -16,14 +17,26 @@ from config import MODEL_CONFIG
 
 logger = logging.getLogger(__name__)
 
-# Initialize the OpenAI client to use Ollama's local server
-ollama_client = OpenAI(
-    base_url=MODEL_CONFIG.ollama_base_url,
-    api_key=MODEL_CONFIG.ollama_api_key
-)
+_ollama_client = None
+_openai_client = None
 
-# Initialize OpenAI client (for fallback)
-openai_client = OpenAI()
+def get_ollama_client() -> OpenAI:
+    global _ollama_client
+    if _ollama_client is None:
+        _ollama_client = OpenAI(
+            base_url=MODEL_CONFIG.ollama_base_url,
+            api_key=MODEL_CONFIG.ollama_api_key
+        )
+    return _ollama_client
+
+def get_openai_client() -> OpenAI:
+    global _openai_client
+    if _openai_client is None:
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY is not set")
+        _openai_client = OpenAI(api_key=api_key)
+    return _openai_client
 
 class PageSummary(BaseModel):
     title: str = Field(..., description="The title of the page")
@@ -131,7 +144,7 @@ Provide only the summary, no additional text or explanation."""
 
     # Try Ollama first
     try:
-        response = ollama_client.chat.completions.create(
+        response = get_ollama_client().chat.completions.create(
             model=MODEL_CONFIG.ollama_summary_model,
             messages=messages,
             temperature=0.3,
@@ -143,7 +156,7 @@ Provide only the summary, no additional text or explanation."""
     
     # Fallback to OpenAI
     try:
-        response = openai_client.chat.completions.create(
+        response = get_openai_client().chat.completions.create(
             model=MODEL_CONFIG.openai_chat_model,
             messages=messages,
             temperature=0.3,
@@ -178,7 +191,7 @@ def get_industry_tickers(industry: str) -> str:
     
     # Try Ollama first
     try:
-        response = ollama_client.chat.completions.create(
+        response = get_ollama_client().chat.completions.create(
             model=MODEL_CONFIG.ollama_chat_model,
             messages=messages,
             temperature=0
@@ -189,7 +202,7 @@ def get_industry_tickers(industry: str) -> str:
     
     # Fallback to OpenAI
     try:
-        response = openai_client.chat.completions.create(
+        response = get_openai_client().chat.completions.create(
             model=MODEL_CONFIG.openai_chat_model,
             messages=messages,
             temperature=0
@@ -377,7 +390,7 @@ def recommend_investment(industry: str) -> str:
     
     # Try Ollama first
     try:
-        response = ollama_client.chat.completions.create(
+        response = get_ollama_client().chat.completions.create(
             model=MODEL_CONFIG.ollama_chat_model,
             messages=messages,
             temperature=0,
@@ -391,7 +404,7 @@ def recommend_investment(industry: str) -> str:
     
     # Fallback to OpenAI
     try:
-        response = openai_client.chat.completions.create(
+        response = get_openai_client().chat.completions.create(
             model=MODEL_CONFIG.openai_chat_model,
             messages=messages,
             temperature=0
