@@ -450,6 +450,23 @@ st.markdown(
         transform: translateY(-2px) !important;
         box-shadow: 0 6px 20px rgba(0,0,0,0.15) !important;
     }
+    /* Tracker Button Styles - Inline sleek design */
+    .tracker-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        border-radius: 16px;
+        font-size: 12px;
+        font-weight: 600;
+        background-color: #dcfce7;
+        color: #166534;
+        white-space: nowrap;
+        margin-left: 8px;
+    }
+    .tracker-badge .tick {
+        font-size: 11px;
+    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -1178,6 +1195,41 @@ if 'numbered_references' not in st.session_state:
     st.session_state['numbered_references'] = {}
 if 'last_duration' not in st.session_state:
     st.session_state['last_duration'] = None
+# Performance tracker - stores tracked recommendations
+if 'tracked_recommendations' not in st.session_state:
+    st.session_state['tracked_recommendations'] = []
+
+
+def is_ticker_tracked(ticker: str) -> bool:
+    """Check if a ticker is already in the tracked recommendations."""
+    for rec in st.session_state['tracked_recommendations']:
+        if rec['ticker'] == ticker:
+            return True
+    return False
+
+
+def add_to_tracker(ticker: str, industry: str, recommendation_date: str, 
+                   recommendation_price: float, recommendation_text: str):
+    """Add a stock recommendation to the performance tracker."""
+    if not is_ticker_tracked(ticker):
+        st.session_state['tracked_recommendations'].append({
+            'ticker': ticker,
+            'industry': industry,
+            'recommendation_date': recommendation_date,
+            'recommendation_price': recommendation_price,
+            'recommendation_text': recommendation_text,
+            'company_name': TICKER_TO_COMPANY.get(ticker, ticker)
+        })
+        return True
+    return False
+
+
+def remove_from_tracker(ticker: str):
+    """Remove a stock from the performance tracker."""
+    st.session_state['tracked_recommendations'] = [
+        rec for rec in st.session_state['tracked_recommendations'] 
+        if rec['ticker'] != ticker
+    ]
 
 def generate_response(prompt, recommendation, model_choice="gpt-4o-mini"):
     st.session_state['messages'].append({"role": "user", "content": prompt})
@@ -1234,7 +1286,10 @@ def main():
                      type="primary" if st.session_state['nav_page'] == 'home' else "secondary"):
             st.session_state['nav_page'] = 'home'
             
-        if st.button("☆  Watchlist", key="nav_watchlist", use_container_width=True,
+        # Show count of tracked recommendations
+        tracked_count = len(st.session_state.get('tracked_recommendations', []))
+        watchlist_label = f"☆  Tracker ({tracked_count})" if tracked_count > 0 else "☆  Tracker"
+        if st.button(watchlist_label, key="nav_watchlist", use_container_width=True,
                      type="primary" if st.session_state['nav_page'] == 'watchlist' else "secondary"):
             st.session_state['nav_page'] = 'watchlist'
             
@@ -1320,10 +1375,89 @@ def main():
                         st.rerun()
     
     elif st.session_state['nav_page'] == 'watchlist':
-        # WATCHLIST PAGE
-        st.markdown("<div class='section-title'>Watchlist</div>", unsafe_allow_html=True)
-        st.markdown("<div class='section-subtitle'>Your saved tickers will appear here</div>", unsafe_allow_html=True)
-        st.info("🚧 Coming soon! You'll be able to save and track your favorite tickers here.")
+        # WATCHLIST PAGE - Show tracked recommendations
+        st.markdown("<div class='section-title'>Performance Tracker</div>", unsafe_allow_html=True)
+        st.markdown("<div class='section-subtitle'>Track how your AI-recommended stocks are performing</div>", unsafe_allow_html=True)
+        
+        tracked = st.session_state.get('tracked_recommendations', [])
+        
+        if not tracked:
+            st.info("📊 No stocks being tracked yet. Get a recommendation and click 'Add to Tracker' to start tracking performance!")
+        else:
+            st.markdown(f"**{len(tracked)} stock(s) being tracked**")
+            
+            # Compact styling for the tracker table
+            st.markdown("""
+            <style>
+            .compact-tracker [data-testid="stVerticalBlock"] { gap: 0 !important; }
+            .compact-tracker [data-testid="stHorizontalBlock"] { align-items: center !important; gap: 0 !important; }
+            .compact-tracker [data-testid="stVerticalBlock"] > div { margin: 0 !important; padding: 0 !important; }
+            .compact-tracker [data-testid="column"] > div { padding: 0 !important; }
+            .compact-tracker [data-testid="stMarkdownContainer"] { margin: 0 !important; padding: 0 !important; }
+            .compact-tracker [data-testid="stMarkdownContainer"] > div { margin: 0 !important; padding: 0 !important; }
+            .compact-tracker [data-testid="stMarkdownContainer"] p { margin: 0 !important; padding: 0 !important; }
+            .compact-tracker [data-testid="stMarkdownContainer"] hr { margin: 0 !important; }
+            .compact-tracker .stButton { margin: 0 !important; padding: 0 !important; }
+            .compact-tracker .stButton > button {
+                padding: 0 4px !important; min-height: 18px !important; height: 18px !important;
+                font-size: 10px !important; line-height: 1 !important;
+                background: transparent !important; border: none !important; color: #9ca3af !important;
+            }
+            .compact-tracker .stButton > button:hover { color: #dc2626 !important; background-color: #fee2e2 !important; }
+            .t-cell { font-size: 13px; line-height: 1.2; padding: 4px 0; margin: 0; }
+            .t-header { font-weight: 600; font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 0; margin: 0; }
+            .t-stock { font-weight: 600; color: #111827; }
+            .t-ticker { color: #6b7280; }
+            .t-date { color: #6b7280; font-size: 12px; }
+            .t-up { color: #16a34a; font-weight: 500; }
+            .t-down { color: #dc2626; font-weight: 500; }
+            .t-hr { border: none; border-top: 1px solid #f3f4f6; margin: 0 !important; padding: 0 !important; }
+            .t-hr-header { border: none; border-top: 2px solid #e5e7eb; margin: 0 !important; padding: 0 !important; }
+            </style>
+            <div class="compact-tracker">
+            """, unsafe_allow_html=True)
+            
+            # Column headers
+            h1, h2, h3, h4, h5 = st.columns([3, 1.8, 1, 2, 0.4])
+            h1.markdown("<p class='t-header'>Stock</p>", unsafe_allow_html=True)
+            h2.markdown("<p class='t-header'>Added</p>", unsafe_allow_html=True)
+            h3.markdown("<p class='t-header'>Entry</p>", unsafe_allow_html=True)
+            h4.markdown("<p class='t-header'>Current / Change</p>", unsafe_allow_html=True)
+            h5.markdown("<p class='t-header'></p>", unsafe_allow_html=True)
+            st.markdown("<hr class='t-hr-header'>", unsafe_allow_html=True)
+            
+            # Data rows
+            for idx, rec in enumerate(tracked):
+                ticker = rec['ticker']
+                company_name = rec.get('company_name', ticker)
+                rec_date = rec.get('recommendation_date', 'Unknown')
+                rec_price = rec.get('recommendation_price', 0)
+                
+                current_info = get_stock_info(ticker)
+                current_price = current_info.get('currentPrice') or current_info.get('regularMarketPrice') or 0
+                
+                if rec_price and rec_price > 0 and current_price:
+                    pct_change = ((current_price - rec_price) / rec_price) * 100
+                    if pct_change >= 0:
+                        change_html = f"${current_price:.2f} <span class='t-up'>▲ {abs(pct_change):.2f}%</span>"
+                    else:
+                        change_html = f"${current_price:.2f} <span class='t-down'>▼ {abs(pct_change):.2f}%</span>"
+                else:
+                    change_html = "N/A"
+                
+                price_html = f"${rec_price:.2f}" if rec_price else "N/A"
+                
+                c1, c2, c3, c4, c5 = st.columns([3, 1.8, 1, 2, 0.4])
+                c1.markdown(f"<p class='t-cell'><span class='t-stock'>{company_name}</span> <span class='t-ticker'>({ticker})</span></p>", unsafe_allow_html=True)
+                c2.markdown(f"<p class='t-cell t-date'>{rec_date}</p>", unsafe_allow_html=True)
+                c3.markdown(f"<p class='t-cell'>{price_html}</p>", unsafe_allow_html=True)
+                c4.markdown(f"<p class='t-cell'>{change_html}</p>", unsafe_allow_html=True)
+                if c5.button("✕", key=f"del_{idx}", help="Remove"):
+                    remove_from_tracker(ticker)
+                    st.rerun()
+                st.markdown("<hr class='t-hr'>", unsafe_allow_html=True)
+            
+            st.markdown("</div>", unsafe_allow_html=True)
     
     elif st.session_state['nav_page'] == 'history':
         # HISTORY PAGE
@@ -1396,10 +1530,51 @@ def main():
             if recommended_ticker:
                 display_value = _get_company_display(recommended_ticker)
 
-            st.markdown(
-                f"<div class='recommendation-line'>Recommendation: <span class='value'>{display_value}</span></div>",
-                unsafe_allow_html=True
-            )
+            # Track/Untrack button inline with recommendation
+            if recommended_ticker:
+                is_tracked = is_ticker_tracked(recommended_ticker)
+                
+                # Get current price for tracking
+                current_info = get_stock_info(recommended_ticker)
+                current_price = current_info.get('currentPrice') or current_info.get('regularMarketPrice') or 0
+                
+                if is_tracked:
+                    # Show recommendation with tracking badge, and small untrack button
+                    col_main, col_btn = st.columns([6, 1])
+                    with col_main:
+                        st.markdown(
+                            f"<div class='recommendation-line'>Recommendation: <span class='value'>{display_value}</span><span class='tracker-badge'><span class='tick'>✓</span> Tracking</span></div>",
+                            unsafe_allow_html=True
+                        )
+                    with col_btn:
+                        if st.button("✕", key="untrack_btn", help="Stop tracking"):
+                            remove_from_tracker(recommended_ticker)
+                            st.rerun()
+                else:
+                    # Show recommendation with track button
+                    col_main, col_btn = st.columns([6, 1])
+                    with col_main:
+                        st.markdown(
+                            f"<div class='recommendation-line'>Recommendation: <span class='value'>{display_value}</span></div>",
+                            unsafe_allow_html=True
+                        )
+                    with col_btn:
+                        if st.button("+ Track", key="track_btn", help="Add to performance tracker"):
+                            industry_name = st.session_state.get('selected_industry', 'Unknown')
+                            add_to_tracker(
+                                ticker=recommended_ticker,
+                                industry=industry_name,
+                                recommendation_date=datetime.now().strftime('%Y-%m-%d %H:%M'),
+                                recommendation_price=current_price,
+                                recommendation_text=explanation[:500] if explanation else ""
+                            )
+                            st.rerun()
+            else:
+                st.markdown(
+                    f"<div class='recommendation-line'>Recommendation: <span class='value'>{display_value}</span></div>",
+                    unsafe_allow_html=True
+                )
+            
             render_explanation(explanation, recommended_ticker, st.session_state.get('news_references', {}), st.session_state.get('numbered_references', {}))
 
             if recommended_ticker:
