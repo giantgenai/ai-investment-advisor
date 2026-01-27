@@ -17,8 +17,12 @@ from llama_index.vector_stores.faiss import FaissVectorStore
 from streamlit_chat import message
 import faiss
 
-from investment_utils import get_industry_tickers, get_news_with_summary
-from mock_responses import get_mock_recommendation, get_mock_chat_response
+from mock_responses import (
+    get_mock_recommendation,
+    get_mock_chat_response,
+    get_mock_industry_tickers,
+    get_mock_news_summaries,
+)
 
 
 logging.basicConfig(
@@ -445,8 +449,9 @@ st.markdown(
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def get_industry_data(industry):
-    tickers = get_industry_tickers(industry)
-    news_summaries = get_news_with_summary(tickers)
+    """Get mock industry data for testing."""
+    tickers = get_mock_industry_tickers(industry)
+    news_summaries = get_mock_news_summaries(tickers)
     return tickers, news_summaries
 
 @st.cache_data(ttl=3600, show_spinner=False)
