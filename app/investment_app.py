@@ -489,6 +489,15 @@ def get_stock_history(ticker: str, period: str = "1y", interval: str = "1d"):
         return None
 
 @st.cache_data(ttl=3600, show_spinner=False)
+def get_stock_history_range(ticker: str, start_date: str, end_date: Optional[str] = None):
+    if not ticker or not start_date:
+        return None
+    try:
+        return yf.Ticker(ticker).history(start=start_date, end=end_date, interval="1d")
+    except Exception:
+        return None
+
+@st.cache_data(ttl=3600, show_spinner=False)
 def get_stock_info(ticker: str):
     if not ticker:
         return {}
@@ -497,6 +506,69 @@ def get_stock_info(ticker: str):
     except Exception:
         return {}
 
+def calculate_percentage_change(ticker: str, period: str, interval: str = "1d") -> Optional[float]:
+    history = get_stock_history(ticker, period=period, interval=interval)
+    if history is None or history.empty:
+        return None
+    try:
+        start_price = history["Close"].iloc[0]
+        end_price = history["Close"].iloc[-1]
+        if start_price is None or end_price is None:
+            return None
+        if start_price != start_price or end_price != end_price:
+            return None
+        if start_price == 0:
+            return None
+        return ((end_price - start_price) / start_price) * 100
+    except Exception:
+        return None
+
+
+def _calculate_return_from_history(history) -> Optional[float]:
+    if history is None or history.empty:
+        return None
+    try:
+        closes = history["Close"].dropna()
+        if closes.empty:
+            return None
+        start_price = closes.iloc[0]
+        end_price = closes.iloc[-1]
+        if start_price == 0:
+            return None
+        return ((end_price - start_price) / start_price) * 100
+    except Exception:
+        return None
+
+
+def _parse_tracker_date(date_str: str) -> Optional[datetime]:
+    if not date_str:
+        return None
+    for fmt in ("%Y-%m-%d %H:%M", "%Y-%m-%d", "%b %d, %Y"):
+        try:
+            return datetime.strptime(date_str, fmt)
+        except ValueError:
+            continue
+    try:
+        return datetime.fromisoformat(date_str)
+    except ValueError:
+        return None
+
+
+def calculate_alpha_vs_sp500(ticker: str, start_date: Optional[datetime]) -> Optional[float]:
+    if not start_date:
+        return None
+    start_str = start_date.strftime("%Y-%m-%d")
+    stock_return = _calculate_return_from_history(
+        get_stock_history_range(ticker, start_date=start_str)
+    )
+    sp_return = _calculate_return_from_history(
+        get_stock_history_range("^GSPC", start_date=start_str)
+    )
+    if stock_return is None or sp_return is None:
+        return None
+    return stock_return - sp_return
+
+
 def format_range(low, high):
     if low is None or high is None:
         return "—"
@@ -504,6 +576,13 @@ def format_range(low, high):
         return f"{low:.2f} - {high:.2f}"
     except Exception:
         return "—"
+
+def format_percentage_change(value: Optional[float]) -> str:
+    if value is None:
+        return "—"
+    css_class = "t-up" if value >= 0 else "t-down"
+    arrow = "▲" if value >= 0 else "▼"
+    return f"<span class='{css_class}'>{arrow} {abs(value):.2f}%</span>"
 
 def format_number(value, suffix=""):
     if value is None:
@@ -1406,6 +1485,7 @@ def main():
             .compact-tracker .stButton > button:hover { color: #dc2626 !important; background-color: #fee2e2 !important; }
             .t-cell { font-size: 13px; line-height: 1.2; padding: 4px 0; margin: 0; }
             .t-header { font-weight: 600; font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 0; margin: 0; }
+            .t-header-lower { text-transform: none; }
             .t-stock { font-weight: 600; color: #111827; }
             .t-ticker { color: #6b7280; }
             .t-date { color: #6b7280; font-size: 12px; }
@@ -1418,12 +1498,16 @@ def main():
             """, unsafe_allow_html=True)
             
             # Column headers
-            h1, h2, h3, h4, h5 = st.columns([3, 1.8, 1, 2, 0.4])
+            h1, h2, h3, h4, h5, h6, h7, h8, h9 = st.columns([3, 1.6, 1, 1.8, 1, 1, 1, 1, 0.4])
             h1.markdown("<p class='t-header'>Stock</p>", unsafe_allow_html=True)
             h2.markdown("<p class='t-header'>Added</p>", unsafe_allow_html=True)
             h3.markdown("<p class='t-header'>Entry</p>", unsafe_allow_html=True)
             h4.markdown("<p class='t-header'>Current / Change</p>", unsafe_allow_html=True)
-            h5.markdown("<p class='t-header'></p>", unsafe_allow_html=True)
+            h5.markdown("<p class='t-header'>1 Week</p>", unsafe_allow_html=True)
+            h6.markdown("<p class='t-header'>1 Month</p>", unsafe_allow_html=True)
+            h7.markdown("<p class='t-header'>3 Months</p>", unsafe_allow_html=True)
+            h8.markdown("<p class='t-header t-header-lower'>vs S&P 500</p>", unsafe_allow_html=True)
+            h9.markdown("<p class='t-header'></p>", unsafe_allow_html=True)
             st.markdown("<hr class='t-hr-header'>", unsafe_allow_html=True)
             
             # Data rows
@@ -1446,13 +1530,30 @@ def main():
                     change_html = "N/A"
                 
                 price_html = f"${rec_price:.2f}" if rec_price else "N/A"
+
+                week_change = format_percentage_change(
+                    calculate_percentage_change(ticker, period="5d")
+                )
+                month_change = format_percentage_change(
+                    calculate_percentage_change(ticker, period="1mo")
+                )
+                quarter_change = format_percentage_change(
+                    calculate_percentage_change(ticker, period="3mo")
+                )
+                alpha_change = format_percentage_change(
+                    calculate_alpha_vs_sp500(ticker, _parse_tracker_date(rec_date))
+                )
                 
-                c1, c2, c3, c4, c5 = st.columns([3, 1.8, 1, 2, 0.4])
+                c1, c2, c3, c4, c5, c6, c7, c8, c9 = st.columns([3, 1.6, 1, 1.8, 1, 1, 1, 1, 0.4])
                 c1.markdown(f"<p class='t-cell'><span class='t-stock'>{company_name}</span> <span class='t-ticker'>({ticker})</span></p>", unsafe_allow_html=True)
                 c2.markdown(f"<p class='t-cell t-date'>{rec_date}</p>", unsafe_allow_html=True)
                 c3.markdown(f"<p class='t-cell'>{price_html}</p>", unsafe_allow_html=True)
                 c4.markdown(f"<p class='t-cell'>{change_html}</p>", unsafe_allow_html=True)
-                if c5.button("✕", key=f"del_{idx}", help="Remove"):
+                c5.markdown(f"<p class='t-cell'>{week_change}</p>", unsafe_allow_html=True)
+                c6.markdown(f"<p class='t-cell'>{month_change}</p>", unsafe_allow_html=True)
+                c7.markdown(f"<p class='t-cell'>{quarter_change}</p>", unsafe_allow_html=True)
+                c8.markdown(f"<p class='t-cell'>{alpha_change}</p>", unsafe_allow_html=True)
+                if c9.button("✕", key=f"del_{idx}", help="Remove"):
                     remove_from_tracker(ticker)
                     st.rerun()
                 st.markdown("<hr class='t-hr'>", unsafe_allow_html=True)
