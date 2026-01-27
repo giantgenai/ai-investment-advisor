@@ -1,27 +1,20 @@
-import pickle
 import streamlit as st
 import time
 import logging
 import re
 import html
 from typing import Optional
-import yfinance as yf
 from datetime import datetime
-from llama_index.core import (
-    VectorStoreIndex,
-    StorageContext,
-    SimpleDirectoryReader,
-    load_index_from_storage,
-)
-from llama_index.vector_stores.faiss import FaissVectorStore
 from streamlit_chat import message
-import faiss
 
 from mock_responses import (
     get_mock_recommendation,
     get_mock_chat_response,
     get_mock_industry_tickers,
     get_mock_news_summaries,
+    get_mock_stock_info,
+    get_mock_stock_history,
+    get_mock_stock_history_range,
 )
 
 
@@ -456,28 +449,31 @@ def get_industry_data(industry):
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def get_stock_history(ticker: str, period: str = "1y", interval: str = "1d"):
+    """Get mock stock history for testing."""
     if not ticker:
         return None
     try:
-        return yf.Ticker(ticker).history(period=period, interval=interval)
+        return get_mock_stock_history(ticker, period=period, interval=interval)
     except Exception:
         return None
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def get_stock_history_range(ticker: str, start_date: str, end_date: Optional[str] = None):
+    """Get mock stock history range for testing."""
     if not ticker or not start_date:
         return None
     try:
-        return yf.Ticker(ticker).history(start=start_date, end=end_date, interval="1d")
+        return get_mock_stock_history_range(ticker, start_date=start_date, end_date=end_date)
     except Exception:
         return None
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def get_stock_info(ticker: str):
+    """Get mock stock info for testing."""
     if not ticker:
         return {}
     try:
-        return yf.Ticker(ticker).info or {}
+        return get_mock_stock_info(ticker)
     except Exception:
         return {}
 
@@ -1055,48 +1051,10 @@ def render_explanation(explanation: str, recommended_ticker: Optional[str] = Non
 
     if not rendered_any:
         st.write(explanation)
-# Load the index
-news_dir = "./data"
-
-# Load documents
-documents = SimpleDirectoryReader(news_dir).load_data()
-
-# Create a FAISS index
-d = 1536  # dimensions of text-embedding-ada-002
-faiss_index = faiss.IndexFlatL2(d)
-vector_store = FaissVectorStore(faiss_index=faiss_index)
-storage_context = StorageContext.from_defaults(vector_store=vector_store)
-
-# Create the index
-index = VectorStoreIndex.from_documents(
-    documents, storage_context=storage_context
-)
-
-# # Save the FAISS index separately
-# faiss.write_index(faiss_index, "./saved_index/faiss.index")
-
-# # Save the rest of the index
-# index.storage_context.persist(persist_dir="./saved_index")
-
-# # Save the vector store separately
-# with open("./saved_index/vector_store.pkl", "wb") as f:
-#     pickle.dump(vector_store, f)
-
-# print("Index saved successfully")
-
-# vector_store = FaissVectorStore.from_persist_dir("./saved_index")
-# storage_context = StorageContext.from_defaults(
-#     vector_store=vector_store, persist_dir="./saved_index"
-# )
-# index = load_index_from_storage(storage_context=storage_context)
-
-# Create a query engine
-query_engine = index.as_query_engine()
-
+# Mock query engine for testing (replaces llama_index/faiss)
 def get_relevant_news(industry: str, company: str) -> str:
-    query = f"What are the recent developments in the {industry} industry, particularly related to {company}?"
-    response = query_engine.query(query)
-    return str(response)
+    """Return mock relevant news for testing."""
+    return f"Recent developments for {company} in the {industry} industry show positive momentum with strong market positioning and growth prospects."
 
 def _parse_news_references(news_summaries: str) -> tuple[str, dict[str, dict[str, str]], dict[int, dict[str, str]]]:
     """Parse news summaries and create reference lists.

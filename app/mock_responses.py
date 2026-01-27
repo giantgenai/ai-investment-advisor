@@ -899,3 +899,528 @@ def get_mock_news_summaries(tickers: str) -> str:
                 return MOCK_NEWS_SUMMARIES[industry]
 
     return DEFAULT_MOCK_NEWS
+
+
+# =============================================================================
+# MOCK STOCK DATA - For fully offline testing without Yahoo Finance
+# =============================================================================
+
+import pandas as pd
+import numpy as np
+from datetime import datetime, timedelta
+
+# Mock stock info data
+MOCK_STOCK_INFO = {
+    "NVDA": {
+        "shortName": "NVIDIA Corporation",
+        "longName": "NVIDIA Corporation",
+        "exchange": "NASDAQ",
+        "currentPrice": 875.50,
+        "regularMarketPrice": 875.50,
+        "previousClose": 868.20,
+        "open": 870.00,
+        "dayLow": 865.30,
+        "dayHigh": 882.15,
+        "fiftyTwoWeekLow": 222.97,
+        "fiftyTwoWeekHigh": 974.00,
+        "volume": 42150000,
+        "averageVolume": 45230000,
+        "marketCap": 2160000000000,
+        "beta": 1.72,
+        "trailingPE": 68.5,
+        "trailingEps": 12.78,
+        "dividendRate": 0.16,
+        "dividendYield": 0.0002,
+        "exDividendDate": 1709164800,
+        "targetMeanPrice": 950.00,
+    },
+    "AAPL": {
+        "shortName": "Apple Inc.",
+        "longName": "Apple Inc.",
+        "exchange": "NASDAQ",
+        "currentPrice": 185.92,
+        "regularMarketPrice": 185.92,
+        "previousClose": 184.25,
+        "open": 184.50,
+        "dayLow": 183.80,
+        "dayHigh": 186.75,
+        "fiftyTwoWeekLow": 164.08,
+        "fiftyTwoWeekHigh": 199.62,
+        "volume": 58230000,
+        "averageVolume": 62450000,
+        "marketCap": 2870000000000,
+        "beta": 1.28,
+        "trailingPE": 29.2,
+        "trailingEps": 6.37,
+        "dividendRate": 0.96,
+        "dividendYield": 0.0052,
+        "exDividendDate": 1707523200,
+        "targetMeanPrice": 195.00,
+    },
+    "MSFT": {
+        "shortName": "Microsoft Corporation",
+        "longName": "Microsoft Corporation",
+        "exchange": "NASDAQ",
+        "currentPrice": 415.80,
+        "regularMarketPrice": 415.80,
+        "previousClose": 412.50,
+        "open": 413.00,
+        "dayLow": 410.25,
+        "dayHigh": 418.90,
+        "fiftyTwoWeekLow": 309.45,
+        "fiftyTwoWeekHigh": 430.82,
+        "volume": 21560000,
+        "averageVolume": 23890000,
+        "marketCap": 3090000000000,
+        "beta": 0.91,
+        "trailingPE": 36.8,
+        "trailingEps": 11.30,
+        "dividendRate": 3.00,
+        "dividendYield": 0.0072,
+        "exDividendDate": 1708041600,
+        "targetMeanPrice": 450.00,
+    },
+    "TSLA": {
+        "shortName": "Tesla, Inc.",
+        "longName": "Tesla, Inc.",
+        "exchange": "NASDAQ",
+        "currentPrice": 248.50,
+        "regularMarketPrice": 248.50,
+        "previousClose": 245.80,
+        "open": 246.00,
+        "dayLow": 242.15,
+        "dayHigh": 252.30,
+        "fiftyTwoWeekLow": 152.37,
+        "fiftyTwoWeekHigh": 299.29,
+        "volume": 98750000,
+        "averageVolume": 105230000,
+        "marketCap": 790000000000,
+        "beta": 2.31,
+        "trailingPE": 72.5,
+        "trailingEps": 3.43,
+        "dividendRate": None,
+        "dividendYield": None,
+        "exDividendDate": None,
+        "targetMeanPrice": 275.00,
+    },
+    "F": {
+        "shortName": "Ford Motor Company",
+        "longName": "Ford Motor Company",
+        "exchange": "NYSE",
+        "currentPrice": 12.45,
+        "regularMarketPrice": 12.45,
+        "previousClose": 12.30,
+        "open": 12.35,
+        "dayLow": 12.20,
+        "dayHigh": 12.58,
+        "fiftyTwoWeekLow": 9.63,
+        "fiftyTwoWeekHigh": 14.85,
+        "volume": 45230000,
+        "averageVolume": 52180000,
+        "marketCap": 49500000000,
+        "beta": 1.45,
+        "trailingPE": 11.2,
+        "trailingEps": 1.11,
+        "dividendRate": 0.60,
+        "dividendYield": 0.048,
+        "exDividendDate": 1706745600,
+        "targetMeanPrice": 14.00,
+    },
+    "GM": {
+        "shortName": "General Motors Company",
+        "longName": "General Motors Company",
+        "exchange": "NYSE",
+        "currentPrice": 38.75,
+        "regularMarketPrice": 38.75,
+        "previousClose": 38.20,
+        "open": 38.30,
+        "dayLow": 37.85,
+        "dayHigh": 39.15,
+        "fiftyTwoWeekLow": 26.30,
+        "fiftyTwoWeekHigh": 42.95,
+        "volume": 12450000,
+        "averageVolume": 14560000,
+        "marketCap": 53200000000,
+        "beta": 1.38,
+        "trailingPE": 5.2,
+        "trailingEps": 7.45,
+        "dividendRate": 0.48,
+        "dividendYield": 0.012,
+        "exDividendDate": 1709251200,
+        "targetMeanPrice": 45.00,
+    },
+    "LLY": {
+        "shortName": "Eli Lilly and Company",
+        "longName": "Eli Lilly and Company",
+        "exchange": "NYSE",
+        "currentPrice": 782.50,
+        "regularMarketPrice": 782.50,
+        "previousClose": 775.30,
+        "open": 778.00,
+        "dayLow": 772.80,
+        "dayHigh": 789.45,
+        "fiftyTwoWeekLow": 516.57,
+        "fiftyTwoWeekHigh": 800.00,
+        "volume": 3250000,
+        "averageVolume": 3890000,
+        "marketCap": 743000000000,
+        "beta": 0.42,
+        "trailingPE": 125.8,
+        "trailingEps": 6.22,
+        "dividendRate": 5.20,
+        "dividendYield": 0.0066,
+        "exDividendDate": 1707609600,
+        "targetMeanPrice": 850.00,
+    },
+    "JPM": {
+        "shortName": "JPMorgan Chase & Co.",
+        "longName": "JPMorgan Chase & Co.",
+        "exchange": "NYSE",
+        "currentPrice": 198.50,
+        "regularMarketPrice": 198.50,
+        "previousClose": 196.20,
+        "open": 197.00,
+        "dayLow": 195.30,
+        "dayHigh": 200.15,
+        "fiftyTwoWeekLow": 135.19,
+        "fiftyTwoWeekHigh": 205.88,
+        "volume": 8560000,
+        "averageVolume": 9230000,
+        "marketCap": 571000000000,
+        "beta": 1.12,
+        "trailingPE": 11.5,
+        "trailingEps": 17.26,
+        "dividendRate": 4.60,
+        "dividendYield": 0.023,
+        "exDividendDate": 1706832000,
+        "targetMeanPrice": 210.00,
+    },
+    "XOM": {
+        "shortName": "Exxon Mobil Corporation",
+        "longName": "Exxon Mobil Corporation",
+        "exchange": "NYSE",
+        "currentPrice": 105.80,
+        "regularMarketPrice": 105.80,
+        "previousClose": 104.50,
+        "open": 104.75,
+        "dayLow": 103.90,
+        "dayHigh": 106.45,
+        "fiftyTwoWeekLow": 95.77,
+        "fiftyTwoWeekHigh": 120.70,
+        "volume": 15680000,
+        "averageVolume": 17230000,
+        "marketCap": 420000000000,
+        "beta": 0.92,
+        "trailingPE": 12.8,
+        "trailingEps": 8.27,
+        "dividendRate": 3.80,
+        "dividendYield": 0.036,
+        "exDividendDate": 1707696000,
+        "targetMeanPrice": 115.00,
+    },
+    "WMT": {
+        "shortName": "Walmart Inc.",
+        "longName": "Walmart Inc.",
+        "exchange": "NYSE",
+        "currentPrice": 168.50,
+        "regularMarketPrice": 168.50,
+        "previousClose": 166.80,
+        "open": 167.20,
+        "dayLow": 165.90,
+        "dayHigh": 169.75,
+        "fiftyTwoWeekLow": 149.08,
+        "fiftyTwoWeekHigh": 173.75,
+        "volume": 7850000,
+        "averageVolume": 8560000,
+        "marketCap": 453000000000,
+        "beta": 0.52,
+        "trailingPE": 28.9,
+        "trailingEps": 5.83,
+        "dividendRate": 2.49,
+        "dividendYield": 0.015,
+        "exDividendDate": 1708128000,
+        "targetMeanPrice": 180.00,
+    },
+    "DAL": {
+        "shortName": "Delta Air Lines, Inc.",
+        "longName": "Delta Air Lines, Inc.",
+        "exchange": "NYSE",
+        "currentPrice": 42.85,
+        "regularMarketPrice": 42.85,
+        "previousClose": 42.10,
+        "open": 42.25,
+        "dayLow": 41.80,
+        "dayHigh": 43.45,
+        "fiftyTwoWeekLow": 33.47,
+        "fiftyTwoWeekHigh": 54.50,
+        "volume": 6230000,
+        "averageVolume": 7450000,
+        "marketCap": 27500000000,
+        "beta": 1.35,
+        "trailingPE": 6.8,
+        "trailingEps": 6.30,
+        "dividendRate": 0.40,
+        "dividendYield": 0.009,
+        "exDividendDate": 1706659200,
+        "targetMeanPrice": 52.00,
+    },
+    "TMUS": {
+        "shortName": "T-Mobile US, Inc.",
+        "longName": "T-Mobile US, Inc.",
+        "exchange": "NASDAQ",
+        "currentPrice": 162.30,
+        "regularMarketPrice": 162.30,
+        "previousClose": 160.80,
+        "open": 161.00,
+        "dayLow": 159.50,
+        "dayHigh": 163.75,
+        "fiftyTwoWeekLow": 132.00,
+        "fiftyTwoWeekHigh": 172.50,
+        "volume": 4560000,
+        "averageVolume": 5230000,
+        "marketCap": 190000000000,
+        "beta": 0.65,
+        "trailingPE": 22.5,
+        "trailingEps": 7.21,
+        "dividendRate": 2.60,
+        "dividendYield": 0.016,
+        "exDividendDate": 1709078400,
+        "targetMeanPrice": 175.00,
+    },
+    "MCD": {
+        "shortName": "McDonald's Corporation",
+        "longName": "McDonald's Corporation",
+        "exchange": "NYSE",
+        "currentPrice": 295.80,
+        "regularMarketPrice": 295.80,
+        "previousClose": 293.50,
+        "open": 294.00,
+        "dayLow": 291.75,
+        "dayHigh": 298.20,
+        "fiftyTwoWeekLow": 245.73,
+        "fiftyTwoWeekHigh": 302.39,
+        "volume": 3120000,
+        "averageVolume": 3560000,
+        "marketCap": 213000000000,
+        "beta": 0.72,
+        "trailingPE": 25.3,
+        "trailingEps": 11.69,
+        "dividendRate": 6.68,
+        "dividendYield": 0.023,
+        "exDividendDate": 1708992000,
+        "targetMeanPrice": 315.00,
+    },
+    "LMT": {
+        "shortName": "Lockheed Martin Corporation",
+        "longName": "Lockheed Martin Corporation",
+        "exchange": "NYSE",
+        "currentPrice": 458.50,
+        "regularMarketPrice": 458.50,
+        "previousClose": 455.20,
+        "open": 456.00,
+        "dayLow": 452.80,
+        "dayHigh": 462.15,
+        "fiftyTwoWeekLow": 412.00,
+        "fiftyTwoWeekHigh": 501.25,
+        "volume": 1250000,
+        "averageVolume": 1450000,
+        "marketCap": 110000000000,
+        "beta": 0.45,
+        "trailingPE": 16.8,
+        "trailingEps": 27.29,
+        "dividendRate": 12.60,
+        "dividendYield": 0.027,
+        "exDividendDate": 1709337600,
+        "targetMeanPrice": 510.00,
+    },
+    "BRK.B": {
+        "shortName": "Berkshire Hathaway Inc.",
+        "longName": "Berkshire Hathaway Inc. Class B",
+        "exchange": "NYSE",
+        "currentPrice": 412.50,
+        "regularMarketPrice": 412.50,
+        "previousClose": 409.80,
+        "open": 410.50,
+        "dayLow": 408.25,
+        "dayHigh": 415.00,
+        "fiftyTwoWeekLow": 323.95,
+        "fiftyTwoWeekHigh": 425.00,
+        "volume": 3450000,
+        "averageVolume": 3890000,
+        "marketCap": 892000000000,
+        "beta": 0.88,
+        "trailingPE": 10.2,
+        "trailingEps": 40.44,
+        "dividendRate": None,
+        "dividendYield": None,
+        "exDividendDate": None,
+        "targetMeanPrice": 440.00,
+    },
+}
+
+# Default stock info for unknown tickers
+DEFAULT_STOCK_INFO = {
+    "shortName": "Unknown Company",
+    "longName": "Unknown Company",
+    "exchange": "N/A",
+    "currentPrice": 100.00,
+    "regularMarketPrice": 100.00,
+    "previousClose": 99.50,
+    "open": 99.75,
+    "dayLow": 98.50,
+    "dayHigh": 101.25,
+    "fiftyTwoWeekLow": 75.00,
+    "fiftyTwoWeekHigh": 125.00,
+    "volume": 1000000,
+    "averageVolume": 1200000,
+    "marketCap": 10000000000,
+    "beta": 1.0,
+    "trailingPE": 20.0,
+    "trailingEps": 5.00,
+    "dividendRate": 1.00,
+    "dividendYield": 0.01,
+    "exDividendDate": None,
+    "targetMeanPrice": 110.00,
+}
+
+
+def _generate_mock_price_history(
+    ticker: str,
+    days: int = 365,
+    end_date: datetime = None
+) -> pd.DataFrame:
+    """
+    Generate realistic-looking mock price history for a ticker.
+
+    Args:
+        ticker: Stock ticker symbol
+        days: Number of days of history to generate
+        end_date: End date for the history (defaults to today)
+
+    Returns:
+        DataFrame with Date index and Open, High, Low, Close, Volume columns
+    """
+    if end_date is None:
+        end_date = datetime.now()
+
+    # Get base price from stock info or use default
+    info = MOCK_STOCK_INFO.get(ticker, DEFAULT_STOCK_INFO)
+    current_price = info.get("currentPrice", 100.0)
+
+    # Generate dates (excluding weekends)
+    dates = []
+    current_date = end_date
+    while len(dates) < days:
+        if current_date.weekday() < 5:  # Monday = 0, Friday = 4
+            dates.append(current_date)
+        current_date -= timedelta(days=1)
+    dates = dates[::-1]  # Reverse to chronological order
+
+    # Generate price series with random walk
+    np.random.seed(hash(ticker) % (2**32))  # Consistent per ticker
+
+    # Start from a lower price and trend upward to current
+    volatility = 0.02  # Daily volatility
+    drift = 0.0003  # Slight upward drift
+
+    # Calculate starting price to end at current price
+    total_return = np.random.randn(len(dates)) * volatility + drift
+    cumulative_return = np.cumsum(total_return)
+
+    # Adjust so final price matches current price
+    adjustment = np.log(current_price) - (np.log(current_price * 0.7) + cumulative_return[-1])
+    prices = np.exp(np.log(current_price * 0.7) + cumulative_return + adjustment * np.linspace(0, 1, len(dates)))
+
+    # Generate OHLCV data
+    data = []
+    for i, (date, close) in enumerate(zip(dates, prices)):
+        daily_range = close * np.random.uniform(0.01, 0.03)
+        open_price = close + np.random.uniform(-daily_range/2, daily_range/2)
+        high = max(open_price, close) + np.random.uniform(0, daily_range/2)
+        low = min(open_price, close) - np.random.uniform(0, daily_range/2)
+        volume = int(info.get("averageVolume", 1000000) * np.random.uniform(0.5, 1.5))
+
+        data.append({
+            "Open": open_price,
+            "High": high,
+            "Low": low,
+            "Close": close,
+            "Volume": volume,
+        })
+
+    df = pd.DataFrame(data, index=pd.DatetimeIndex(dates))
+    df.index.name = "Date"
+    return df
+
+
+def get_mock_stock_info(ticker: str) -> dict:
+    """
+    Get mock stock info for a ticker.
+
+    Args:
+        ticker: Stock ticker symbol
+
+    Returns:
+        Dictionary with stock info
+    """
+    return MOCK_STOCK_INFO.get(ticker.upper(), DEFAULT_STOCK_INFO.copy())
+
+
+def get_mock_stock_history(
+    ticker: str,
+    period: str = "1y",
+    interval: str = "1d"
+) -> pd.DataFrame:
+    """
+    Get mock stock price history.
+
+    Args:
+        ticker: Stock ticker symbol
+        period: Time period (1d, 5d, 1mo, 6mo, ytd, 1y, 5y, max)
+        interval: Data interval (ignored in mock, always daily)
+
+    Returns:
+        DataFrame with OHLCV data
+    """
+    # Map period to number of days
+    period_days = {
+        "1d": 1,
+        "5d": 5,
+        "1mo": 21,
+        "3mo": 63,
+        "6mo": 126,
+        "ytd": 252,  # Approximate
+        "1y": 252,
+        "5y": 1260,
+        "max": 2520,
+    }
+
+    days = period_days.get(period, 252)
+    return _generate_mock_price_history(ticker, days)
+
+
+def get_mock_stock_history_range(
+    ticker: str,
+    start_date: str,
+    end_date: str = None
+) -> pd.DataFrame:
+    """
+    Get mock stock price history for a date range.
+
+    Args:
+        ticker: Stock ticker symbol
+        start_date: Start date string (YYYY-MM-DD)
+        end_date: End date string (optional, defaults to today)
+
+    Returns:
+        DataFrame with OHLCV data
+    """
+    end = datetime.now() if end_date is None else datetime.strptime(end_date, "%Y-%m-%d")
+    start = datetime.strptime(start_date, "%Y-%m-%d")
+    days = (end - start).days
+
+    if days <= 0:
+        days = 1
+
+    df = _generate_mock_price_history(ticker, days, end)
+    return df[df.index >= pd.Timestamp(start)]
