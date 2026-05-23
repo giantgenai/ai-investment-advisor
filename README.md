@@ -27,6 +27,7 @@ The AI Image Classifier app enables users to upload an image and receive a class
 
 ## Features
 - **News Scraping:** The application scrapes financial news from sources like CNBC and Yahoo Finance. It uses python libraries `requests` and `BeautifulSoup` to fetch and parse web content. The scraped articles are saved locally with metadata like title, source, and timestamp.
+- **FAISS-Powered Semantic Search (RAG):** Scraped news articles are embedded and indexed into a [FAISS](https://github.com/facebookresearch/faiss) (Facebook AI Similarity Search) vector store via LlamaIndex's `FaissVectorStore`. When the app evaluates a candidate company, it issues semantic queries against the FAISS index to retrieve the most relevant news passages for that ticker — enabling fast, low-latency similarity search over the local corpus and grounding the LLM's recommendation in retrieved evidence rather than raw scraped text. The FAISS index is persisted to disk (`./saved_index`) so subsequent runs reload instantly without re-embedding.
 - **Investment Recommendation:** The app uses a language model to analyze news summaries and recommend investments. The companies news are scraped and summarized by `Crawl4ai`'s `LLMExtractionStrategy` with options of using `OpenAI's GPT models` or `Ollama's LLaMA 3` model, which is compatible with OpenAI's API format but runs locally.
 - **Local LLM Integration:** The app is configured to use `Ollama's LLaMA models locally`, leveraging their OpenAI-compatible API. This setup involves running a local server and using a placeholder API key ('ollama'), which is required but not used for authentication.
 
@@ -94,7 +95,8 @@ If you want to use OpenAI GPT models, please ensure you have the OpenAI API Key 
    <img src="images/Investment_app_company_news.png" alt="Alt Text" width="100%" height="65%">
 
 ## Technologies Used
-- Data orchestration: LlamaIndex
+- Data orchestration / RAG: LlamaIndex
+- Vector similarity search: **FAISS** (`llama-index-vector-stores-faiss`) — used to index news embeddings and retrieve the most relevant articles per company at query time
 - Large language Model: OpenAI GPT-4o-mini, Llama 3.2
 - Web Crawler: BeautifulSoup, Crawl4ai
 - Application: Streamlit 
