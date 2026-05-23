@@ -19,7 +19,12 @@ RUN git init && \
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-RUN chmod -R 777 /testbed/${REPO_NAME}
+# Create a non-root user and set minimum required permissions
+RUN useradd -m appuser && \
+    chown -R appuser:appuser /testbed/${REPO_NAME} && \
+    chmod -R 755 /testbed/${REPO_NAME}
+
+USER appuser
 
 EXPOSE 8501
 
