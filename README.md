@@ -30,6 +30,7 @@ The AI Image Classifier app enables users to upload an image and receive a class
 - **FAISS-Powered Semantic Search (RAG):** Scraped news articles are embedded and indexed into a [FAISS](https://github.com/facebookresearch/faiss) (Facebook AI Similarity Search) vector store via LlamaIndex's `FaissVectorStore`. When the app evaluates a candidate company, it issues semantic queries against the FAISS index to retrieve the most relevant news passages for that ticker — enabling fast, low-latency similarity search over the local corpus and grounding the LLM's recommendation in retrieved evidence rather than raw scraped text. The FAISS index is persisted to disk (`./saved_index`) so subsequent runs reload instantly without re-embedding.
 - **Investment Recommendation:** The app uses a language model to analyze news summaries and recommend investments. The companies news are scraped and summarized by `Crawl4ai`'s `LLMExtractionStrategy` with options of using `OpenAI's GPT models` or `Ollama's LLaMA 3` model, which is compatible with OpenAI's API format but runs locally.
 - **Local LLM Integration:** The app is configured to use `Ollama's LLaMA models locally`, leveraging their OpenAI-compatible API. This setup involves running a local server and using a placeholder API key ('ollama'), which is required but not used for authentication.
+- **MCP Market-Data Server:** A bundled [Model Context Protocol](https://modelcontextprotocol.io/) server (`mcp_server/market_data_server.py`) exposes three tools — `get_market_data(ticker)`, `get_price_history(ticker, period)`, and `list_supported_tickers()` — so any MCP-compatible LLM client (Claude Desktop, Claude Code, etc.) can fetch live quote snapshots and OHLCV history during a conversation. This makes the app's tool-calling story concrete: the same offline mock dataset that powers the Streamlit UI is also reachable over MCP.
 
 ## Dependencies
 ### Required Software
@@ -81,6 +82,22 @@ If you want to use OpenAI GPT models, please ensure you have the OpenAI API Key 
    ```bash
    streamlit run app/investment_app.py
    ```
+5. (Optional) Run the MCP market-data server so an MCP client can call its tools:
+   ```bash
+   python -m mcp_server.market_data_server
+   ```
+   Or register it in an MCP client's config, e.g. Claude Desktop's `claude_desktop_config.json`:
+   ```json
+   {
+     "mcpServers": {
+       "ai-investment-market-data": {
+         "command": "python",
+         "args": ["-m", "mcp_server.market_data_server"],
+         "cwd": "/absolute/path/to/ai-investment-advisor"
+       }
+     }
+   }
+   ```
 ## Examples
 - Enter the industry you're interested in and click `Get Recommendation`: E.g. Technology
 
@@ -99,6 +116,7 @@ If you want to use OpenAI GPT models, please ensure you have the OpenAI API Key 
 - Vector similarity search: **FAISS** (`llama-index-vector-stores-faiss`) — used to index news embeddings and retrieve the most relevant articles per company at query time
 - Large language Model: OpenAI GPT-4o-mini, Llama 3.2
 - Web Crawler: BeautifulSoup, Crawl4ai
+- Tool calling: **MCP (Model Context Protocol)** server exposing market-data tools to LLM clients
 - Application: Streamlit 
 
 ## License
