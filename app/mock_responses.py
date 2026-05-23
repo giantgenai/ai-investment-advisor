@@ -905,6 +905,7 @@ def get_mock_news_summaries(tickers: str) -> str:
 # MOCK STOCK DATA - For fully offline testing without Yahoo Finance
 # =============================================================================
 
+import hashlib
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
@@ -1317,7 +1318,7 @@ def _generate_mock_price_history(
     dates = dates[::-1]  # Reverse to chronological order
 
     # Generate price series with random walk
-    np.random.seed(hash(ticker) % (2**32))  # Consistent per ticker
+    np.random.seed(int(hashlib.md5(ticker.encode()).hexdigest(), 16) % (2**32))  # Consistent per ticker
 
     # Start from a lower price and trend upward to current
     volatility = 0.02  # Daily volatility
