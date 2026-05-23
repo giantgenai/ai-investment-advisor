@@ -1,26 +1,21 @@
-import pickle
 import streamlit as st
 import time
 import logging
-import os
 import re
 import html
 from typing import Optional
-import yfinance as yf
 from datetime import datetime
-from llama_index.core import (
-    VectorStoreIndex,
-    StorageContext,
-    SimpleDirectoryReader,
-    load_index_from_storage,
-)
-from llama_index.vector_stores.faiss import FaissVectorStore
 from streamlit_chat import message
-from openai import OpenAI
-import faiss
 
-from investment_utils import get_industry_tickers, get_news_with_summary
-from config import MODEL_CONFIG
+from mock_responses import (
+    get_mock_recommendation,
+    get_mock_chat_response,
+    get_mock_industry_tickers,
+    get_mock_news_summaries,
+    get_mock_stock_info,
+    get_mock_stock_history,
+    get_mock_stock_history_range,
+)
 
 
 logging.basicConfig(
@@ -29,34 +24,6 @@ logging.basicConfig(
 )
 
 st.set_page_config(page_title="Investment Advisor Pro", page_icon="📈", layout="wide")
-
-_openai_client = None
-_ollama_client = None
-
-
-def get_openai_client() -> OpenAI:
-    """Return a singleton OpenAI client for hosted OpenAI models."""
-
-    global _openai_client
-    if _openai_client is None:
-        api_key = os.environ.get("OPENAI_API_KEY")
-        if not api_key:
-            raise RuntimeError("OPENAI_API_KEY environment variable is not set.")
-        _openai_client = OpenAI(api_key=api_key)
-    return _openai_client
-
-
-def get_ollama_client() -> OpenAI:
-    """Return a singleton OpenAI-compatible client for Ollama endpoints."""
-
-    global _ollama_client
-    if _ollama_client is None:
-        _ollama_client = OpenAI(
-            base_url=MODEL_CONFIG.ollama_base_url,
-            api_key=MODEL_CONFIG.ollama_api_key,
-        )
-    return _ollama_client
-
 
 st.markdown(
     """
@@ -475,34 +442,38 @@ st.markdown(
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def get_industry_data(industry):
-    tickers = get_industry_tickers(industry)
-    news_summaries = get_news_with_summary(tickers)
+    """Get mock industry data for testing."""
+    tickers = get_mock_industry_tickers(industry)
+    news_summaries = get_mock_news_summaries(tickers)
     return tickers, news_summaries
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def get_stock_history(ticker: str, period: str = "1y", interval: str = "1d"):
+    """Get mock stock history for testing."""
     if not ticker:
         return None
     try:
-        return yf.Ticker(ticker).history(period=period, interval=interval)
+        return get_mock_stock_history(ticker, period=period, interval=interval)
     except Exception:
         return None
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def get_stock_history_range(ticker: str, start_date: str, end_date: Optional[str] = None):
+    """Get mock stock history range for testing."""
     if not ticker or not start_date:
         return None
     try:
-        return yf.Ticker(ticker).history(start=start_date, end=end_date, interval="1d")
+        return get_mock_stock_history_range(ticker, start_date=start_date, end_date=end_date)
     except Exception:
         return None
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def get_stock_info(ticker: str):
+    """Get mock stock info for testing."""
     if not ticker:
         return {}
     try:
-        return yf.Ticker(ticker).info or {}
+        return get_mock_stock_info(ticker)
     except Exception:
         return {}
 
@@ -1080,48 +1051,10 @@ def render_explanation(explanation: str, recommended_ticker: Optional[str] = Non
 
     if not rendered_any:
         st.write(explanation)
-# Load the index
-news_dir = "./data"
-
-# Load documents
-documents = SimpleDirectoryReader(news_dir).load_data()
-
-# Create a FAISS index
-d = 1536  # dimensions of text-embedding-ada-002
-faiss_index = faiss.IndexFlatL2(d)
-vector_store = FaissVectorStore(faiss_index=faiss_index)
-storage_context = StorageContext.from_defaults(vector_store=vector_store)
-
-# Create the index
-index = VectorStoreIndex.from_documents(
-    documents, storage_context=storage_context
-)
-
-# # Save the FAISS index separately
-# faiss.write_index(faiss_index, "./saved_index/faiss.index")
-
-# # Save the rest of the index
-# index.storage_context.persist(persist_dir="./saved_index")
-
-# # Save the vector store separately
-# with open("./saved_index/vector_store.pkl", "wb") as f:
-#     pickle.dump(vector_store, f)
-
-# print("Index saved successfully")
-
-# vector_store = FaissVectorStore.from_persist_dir("./saved_index")
-# storage_context = StorageContext.from_defaults(
-#     vector_store=vector_store, persist_dir="./saved_index"
-# )
-# index = load_index_from_storage(storage_context=storage_context)
-
-# Create a query engine
-query_engine = index.as_query_engine()
-
+# Mock query engine for testing (replaces llama_index/faiss)
 def get_relevant_news(industry: str, company: str) -> str:
-    query = f"What are the recent developments in the {industry} industry, particularly related to {company}?"
-    response = query_engine.query(query)
-    return str(response)
+    """Return mock relevant news for testing."""
+    return f"Recent developments for {company} in the {industry} industry show positive momentum with strong market positioning and growth prospects."
 
 def _parse_news_references(news_summaries: str) -> tuple[str, dict[str, dict[str, str]], dict[int, dict[str, str]]]:
     """Parse news summaries and create reference lists.
@@ -1176,83 +1109,8 @@ def _parse_news_references(news_summaries: str) -> tuple[str, dict[str, dict[str
 
 
 def recommend_investment(industry: str, tickers: str, news_summaries: str, model_choice: str="gpt-4o-mini") -> tuple[str, dict[str, dict[str, str]], dict[int, dict[str, str]]]:
-
-    relevant_news = ""
-    for ticker in tickers.split(", "):
-        relevant_news += get_relevant_news(industry, ticker) + "\n\n"
-    
-    # Parse news to create source-name references
-    formatted_news, references, numbered_refs = _parse_news_references(news_summaries)
-    
-    # Build reference list for the prompt with source names
-    ref_list = "\n".join([f"[{source}] {ref['title']}" for source, ref in references.items()])
-    
-    prompt = f"""
-    Based on the following news summaries and relevant news for companies in the {industry} industry, 
-    analyze the information and recommend the best company for investment. 
-    Consider factors such as positive developments, growth potential, and market trends.
-
-    Industry: {industry}
-    Tickers: {tickers}
-    
-    News Articles (with source names for citation):
-    {ref_list}
-    
-    Full News Summaries:
-    {formatted_news}
-    
-    Relevant News:
-    {relevant_news}
-
-    Please structure your response as follows:
-    1. Start with "Recommendation:" followed by the ticker symbol of the recommended company.
-    2. Then, provide an "Explanation:" section with a detailed analysis of why this company is recommended.
-    3. Include 3-4 key points supporting your recommendation. Use dash bullets only and do not prefix bullets with numbers.
-    4. Briefly mention why the other companies were not chosen.
-
-    CRITICAL REQUIREMENT - CITATIONS:
-    - EVERY single key point MUST end with at least one citation using the source name in brackets. NO EXCEPTIONS.
-    - EVERY reason for not choosing other companies MUST also include citations.
-    - Use the EXACT source names from the "News Articles" list above (e.g., [Motley Fool], [Ward's Auto], [24/7 Wall St]).
-    - Multiple citations can be combined like [Motley Fool][Reuters].
-    - Do NOT use numbers like [1], [2] - use the actual source names.
-    - Do NOT use placeholders like [Relevant News] or [Source] - only use the specific source names provided.
-    - If you cannot cite a source for a point, do not include that point.
-    - Points without citations will be rejected.
-
-    Example format:
-    - The company shows strong growth potential due to recent developments [Motley Fool].
-    - Market expansion supports long-term outlook [Ward's Auto][24/7 Wall St].
-
-    Your response should look like this:
-
-    Recommendation: [TICKER]
-
-    Explanation:
-    [Your detailed explanation here, with EVERY point citing sources using [Source Name]]
-
-    Do not include any other sections or repeat the recommendation and explanation.
-    """
-
-    if model_choice == MODEL_CONFIG.openai_chat_model:
-        client = get_openai_client()
-        model = MODEL_CONFIG.openai_chat_model
-    else:
-        client = get_ollama_client()
-        model = MODEL_CONFIG.ollama_chat_model  
-
-    # Make the API call to OpenAI's GPT-4 model
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": "You are a financial assistant specialized in investment analysis."},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0  # This makes the output more deterministic
-    )
-    
-    # Return the response content and references (both named and numbered)
-    return response.choices[0].message.content.strip(), references, numbered_refs
+    """Return mock investment recommendation for testing."""
+    return get_mock_recommendation(industry)
 
 
 # Initialize session state variables
@@ -1311,27 +1169,12 @@ def remove_from_tracker(ticker: str):
     ]
 
 def generate_response(prompt, recommendation, model_choice="gpt-4o-mini"):
+    """Return mock chat response for testing."""
     st.session_state['messages'].append({"role": "user", "content": prompt})
 
-    
-    if model_choice == MODEL_CONFIG.openai_chat_model:
-        client = get_openai_client()
-        model = MODEL_CONFIG.openai_chat_model
-    else:
-        client = get_ollama_client()
-        model = MODEL_CONFIG.ollama_chat_model  
-    
-    response = client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant that provides information about the investment recommendation. Refer to the recommendation when answering questions."},
-                {"role": "assistant", "content": f"Here's the investment recommendation: {recommendation}"},
-                *st.session_state['messages']
-    ])
-    
-    bot_response = response.choices[0].message.content
+    bot_response = get_mock_chat_response(prompt, recommendation)
     st.session_state['messages'].append({"role": "assistant", "content": bot_response})
-    
+
     return bot_response
 
 def main():
@@ -1390,11 +1233,11 @@ def main():
         
         # Settings Section
         st.markdown("<div class='nav-section'>Settings</div>", unsafe_allow_html=True)
-        
+
         model_choice = st.selectbox(
             "Language Model",
-            [MODEL_CONFIG.ollama_chat_model, MODEL_CONFIG.openai_chat_model],
-            help="Select which language model to use for generating responses",
+            ["Mock Mode (Testing)"],
+            help="Using mock responses for testing - no API calls",
             label_visibility="collapsed"
         )
         
